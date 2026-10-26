@@ -2,6 +2,7 @@ import * as THREE from "../assets/vendor/three.module.js";
 import { ARENA, LANES, LANE_IDS, NEXUS, TEAM } from "../shared/constants.js";
 import { getHero } from "../shared/heroes.js";
 import { clamp } from "../shared/physics.js";
+import { bearingBetween } from "./combat.js";
 import { ArenaRenderer, TEAM_COLORS, drawHeroPortrait, roundedRect } from "./render.js";
 
 const TEAM_HEX = [0x45c3ff, 0xff5d7d];
@@ -1343,6 +1344,17 @@ export class ArenaRenderer3D extends ArenaRenderer {
     this.vec.set(x, z, y).project(this.camera);
     const { width, height } = this.transform;
     return { x: (this.vec.x * 0.5 + 0.5) * width, y: (-this.vec.y * 0.5 + 0.5) * height };
+  }
+
+  /**
+   * Arah dari `from` ke `to` di ruang layar (lewat proyeksi kamera, bukan sumbu dunia),
+   * beserta titik layar `from`, agar panah penyerang tepat di sudut kamera perspektif.
+   */
+  screenBearing(from, to) {
+    const origin = this.project(from.x, from.y, 20);
+    const target = this.project(to.x, to.y, 20);
+    const angle = bearingBetween(origin, target);
+    return angle === null ? null : { angle, origin };
   }
 
   screenToWorld(clientX, clientY) {

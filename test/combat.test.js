@@ -6,6 +6,7 @@ import {
   ALERT_MERGE_MS,
   alertLabel,
   angleToward,
+  bearingBetween,
   collectHitEvents,
   hpTone,
   mergeAlert,
@@ -114,4 +115,26 @@ test("arah penyerang dan warna bar HP", () => {
   assert.ok(Math.abs(angleToward(origin, { x: 200, y: 100 }) - Math.PI / 2) < 1e-9, "kanan");
   assert.ok(Math.abs(Math.abs(angleToward(origin, { x: 100, y: 200 })) - Math.PI) < 1e-9, "bawah");
   assert.deepEqual([1, 0.6, 0.4, 0.25, 0.1].map(hpTone), ["ok", "ok", "warn", "critical", "critical"]);
+});
+
+test("bearingBetween: arah di ruang layar, null bila titik berimpit", () => {
+  const origin = { x: 400, y: 300 };
+  const deg = (point) => (bearingBetween(origin, point) * 180) / Math.PI;
+  assert.ok(Math.abs(deg({ x: 400, y: 100 })) < 1e-9, "atas");
+  assert.ok(Math.abs(deg({ x: 600, y: 300 }) - 90) < 1e-9, "kanan");
+  assert.ok(Math.abs(deg({ x: 200, y: 300 }) + 90) < 1e-9, "kiri");
+  assert.ok(Math.abs(deg({ x: 500, y: 200 }) - 45) < 1e-9, "kanan-atas");
+  assert.equal(bearingBetween(origin, { x: 400.2, y: 300.2 }), null);
+});
+
+test("proyeksi kamera miring: arah di layar berbeda dari arah di dunia, dan bearingBetween mengikuti layar", () => {
+  // Kamera miring memampatkan sumbu kedalaman: dunia (dx=100, dy=100) tampil sebagai (100, 50).
+  const project = (p) => ({ x: p.x, y: p.y * 0.5 });
+  const self = { x: 0, y: 0 };
+  const attacker = { x: 100, y: 100 };
+  const world = angleToward(self, attacker);
+  const screen = bearingBetween(project(self), project(attacker));
+  assert.ok(Math.abs(world - (3 * Math.PI) / 4) < 1e-9, "dunia: kanan-bawah 135 derajat");
+  assert.ok(Math.abs(screen - Math.atan2(100, -50)) < 1e-9, "layar: 116,6 derajat");
+  assert.ok(Math.abs(screen - world) > 0.3, "memakai arah dunia akan meleset sekitar 18 derajat");
 });

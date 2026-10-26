@@ -672,7 +672,12 @@ function handleCombatEvents(state) {
       restartAnimation(els.hitVignette, "on");
       const self = state.players.find((player) => player.id === selfId);
       if (self && event.source) {
-        els.hitDir.style.transform = `rotate(${angleToward(self, event.source)}rad)`;
+        // renderer 3D: arah dihitung lewat kamera dan berpusat di hero; 2D: arah dunia dari tengah layar
+        const bearing = renderer.screenBearing?.(self, event.source);
+        const angle = bearing ? bearing.angle : angleToward(self, event.source);
+        els.hitDir.style.left = bearing ? `${bearing.origin.x}px` : "50%";
+        els.hitDir.style.top = bearing ? `${bearing.origin.y}px` : "50%";
+        els.hitDir.style.transform = `rotate(${angle}rad)`;
         restartAnimation(els.hitDir, "on");
       }
       const now = performance.now();
@@ -1176,6 +1181,7 @@ let duelHideTimer = 0;
 
 function showDuel(duel) {
   window.clearTimeout(duelHideTimer);
+  document.body.classList.add("duel-open");
   ui.activeDuel = { ...duel, answered: false, selected: null };
   els.duelCard.classList.remove("hidden");
   els.duelCard.classList.toggle("defend", duel.role === "victim");
@@ -1280,6 +1286,7 @@ function tickDuelTimer() {
 
 function hideDuel() {
   window.clearTimeout(duelHideTimer);
+  document.body.classList.remove("duel-open");
   ui.activeDuel = null;
   els.duelCard.classList.add("hidden");
   els.duelOptions.replaceChildren();

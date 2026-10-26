@@ -2180,3 +2180,84 @@ body.native #fullscreenBtn {
     font-size: 10px;
   }
 }
+
+/* layar pendek (HP landscape): kartu duel dipadatkan agar tidak menutupi panel HP,
+   dan notifikasi serangan disembunyikan selama duel (kilatan dan panah arah tetap tampil) */
+.duel-open .combat-alerts {
+  display: none;
+}
+
+/* selama duel, skor/objektif/Clash di tengah atas disembunyikan agar kartu tidak menimpanya */
+.duel-open .score-line,
+.duel-open .objective-status,
+.duel-open .next-clash {
+  visibility: hidden;
+}
+
+@media (max-height: 440px) {
+  /* hasil menggantikan soal agar kartu tetap pendek */
+  .duel-card:has(.duel-result:not(.hidden)) .duel-prompt {
+    display: none;
+  }
+
+  .duel-card {
+    top: 54px;
+    width: clamp(240px, 44vw, 420px);
+    padding: 5px 7px 6px;
+  }
+
+  .duel-category,
+  .duel-options .option-key,
+  #duelExplanation {
+    display: none;
+  }
+
+  .duel-options .clash-option {
+    justify-content: center;
+    text-align: center;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+  }
+
+  .duel-head {
+    gap: 5px;
+  }
+
+  .duel-timer {
+    font-size: 13px;
+  }
+
+  .duel-track {
+    margin: 4px 0 5px;
+  }
+
+  .duel-prompt {
+    margin-bottom: 4px;
+    font-size: 13px;
+    line-height: 1.2;
+  }
+
+  .duel-options {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+  }
+
+  .duel-options .clash-option {
+    min-height: 30px;
+    gap: 5px;
+    padding: 3px 5px;
+    font-size: 10px;
+  }
+
+  .duel-options .option-key {
+    width: 16px;
+    height: 16px;
+    font-size: 8px;
+  }
+
+  .duel-result {
+    margin-top: 4px;
+    padding: 4px 6px;
+    font-size: 10px;
+  }
+}

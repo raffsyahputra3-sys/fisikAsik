@@ -62,6 +62,18 @@ export function angleToward(from, to) {
   return Math.atan2(to.x - from.x, -(to.y - from.y));
 }
 
+/**
+ * Sudut (radian, searah jarum jam dari atas layar) antara dua titik LAYAR.
+ * Dipakai bersama proyeksi kamera agar arah panah benar di sudut kamera mana pun.
+ * Mengembalikan null bila kedua titik hampir berimpit.
+ */
+export function bearingBetween(a, b, minDistance = 1) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  if (Math.hypot(dx, dy) < minDistance) return null;
+  return Math.atan2(dx, -dy);
+}
+
 /** Kelas warna bar HP: sehat, waspada, kritis. */
 export function hpTone(ratio) {
   if (ratio <= 0.25) return "critical";
