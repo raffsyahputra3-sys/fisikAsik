@@ -1340,6 +1340,7 @@ body.touch .move-hint {
   background: #04131d;
   text-align: center;
   color: var(--cream);
+  cursor: pointer;
 }
 
 .rotate-hint svg {

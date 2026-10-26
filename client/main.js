@@ -97,6 +97,7 @@ const els = {
   serverInput: $("serverInput"),
   audioToggle: $("audioToggle"),
   saveServerBtn: $("saveServerBtn"),
+  rotateHint: $("rotateHint"),
   closeSettingsBtn: $("closeSettingsBtn"),
   toastStack: $("toastStack"),
   bootOverlay: $("bootOverlay"),
@@ -1900,6 +1901,7 @@ function bindEvents() {
     if (event.target === els.settingsModal) closeSettings();
   });
   els.saveServerBtn.addEventListener("click", saveSettings);
+  els.rotateHint.addEventListener("click", enterImmersive);
   els.serverInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") saveSettings();
   });
