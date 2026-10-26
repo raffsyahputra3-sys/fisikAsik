@@ -474,6 +474,44 @@ function addArms(root, options) {
   return arms;
 }
 
+// ---------------------------------------------------------------- kaki
+
+/**
+ * Kaki berpivot di pinggul: celana/paha, betis kulit (kecuali `pantFull`), dan
+ * telapak kartun. Dipasang di holder (menapak tanah); tubuh diangkat setinggi
+ * `length` oleh buildHero.
+ */
+function addLegs(holder, options) {
+  const {
+    length = 12,
+    x = 9,
+    radius = 5,
+    pant,
+    pantMap = null,
+    skin,
+    shoe,
+    pantFull = false,
+    footLength = 12,
+    footRadius = 6,
+  } = options;
+  const hipY = length + 4;
+  const legHeight = hipY - 3;
+  const upper = pantFull ? legHeight : legHeight * 0.5;
+  const legs = { left: null, right: null, length };
+  for (const side of [-1, 1]) {
+    const pivot = new THREE.Group();
+    put(holder, pivot, side * x, hipY, 0);
+    put(pivot, cylinder(pant, radius, upper, radius, { map: pantMap }), 0, -upper / 2, 0);
+    if (!pantFull) {
+      put(pivot, cylinder(skin, radius * 0.78, legHeight - upper + 1, radius * 0.78), 0, -upper - (legHeight - upper) / 2 + 0.5, 0);
+    }
+    put(pivot, ball(shoe, footRadius, 3.6, footLength / 2), 0, -hipY + 3.6, footLength * 0.22);
+    if (side < 0) legs.left = pivot;
+    else legs.right = pivot;
+  }
+  return legs;
+}
+
 // ---------------------------------------------------------------- heroes
 // Satuan model: tinggi tubuh ~56, jari-jari ~24 (sama dengan sprite 2D).
 
@@ -633,8 +671,12 @@ function buildNyiRoro(hero, state) {
   for (const a of [-1, 0, 1]) put(head, cone(0xfacc15, 2.6, 9, { emissive: 0xb45309, outline: false }), a * 8, 14, 0);
   put(head, ball(0x34d399, 2.6, 3.2, 2, { emissive: 0x059669, outline: false }), 0, 12, 12);
   put(root, block(0xfde68a, 4, 26, 2, { map: tex("batik", 0xfde68a, 0xb45309, [1, 3]) }), 0, 22, 18);
-  put(root, cylinder(0x67e8f9, 30, 2.2, 30, { opacity: 0.75, outline: false }), 0, 1, 0);
-  put(root, cylinder(0x22d3ee, 24, 3, 24, { opacity: 0.8, outline: false }), 0, 2, 0);
+  // piringan ombak menapak tanah (dipasang di holder oleh buildHero), bukan ikut terangkat
+  const foam = cylinder(0x67e8f9, 30, 2.2, 30, { opacity: 0.75, outline: false });
+  foam.position.set(0, 1, 0);
+  const wave = cylinder(0x22d3ee, 24, 3, 24, { opacity: 0.8, outline: false });
+  wave.position.set(0, 2, 0);
+  state.ground = [foam, wave];
   state.orbs = [];
   for (let index = 0; index < 3; index += 1) {
     const orb = ball(0x7dd3fc, 6.5, 6.5, 6.5, { opacity: 0.85, emissive: 0x0e7490, outline: false });
@@ -722,11 +764,29 @@ const HERO_BUILDERS = {
   lumen: buildPawang,
 };
 
+const HERO_LEGS = {
+  bastion: { length: 17, x: 10, radius: 6, pant: 0x18181b, pantMap: tex("weave", 0x1f1f25, 0x32323a, [2, 1]), skin: 0xcf9460, shoe: 0x3b2a1a, footLength: 14, footRadius: 7 },
+  vanguard: { length: 17, x: 9, radius: 5.4, pant: 0x7c2d12, pantMap: tex("batik", 0x7c2d12, 0xfcd34d, [2, 1]), skin: 0xc98f5c, shoe: 0x92560f, footLength: 13, footRadius: 6.4 },
+  shade: { length: 13, x: 8, radius: 4, pant: 0x2e1065, skin: 0xd9d2e6, shoe: 0xe8e0cc, footLength: 14, footRadius: 5 },
+  ember: { length: 13, x: 8, radius: 3.6, pant: 0x10b981, skin: 0xe7efe9, shoe: 0xa7f3d0, footLength: 11, footRadius: 4.8 },
+  quill: { length: 16, x: 8.5, radius: 5, pant: 0x7c2d12, pantMap: tex("weave", 0x8a3b16, 0xd6a24a, [2, 1]), skin: 0xd49a68, shoe: 0x5b3a1c, footLength: 12, footRadius: 5.6 },
+  lumen: { length: 16, x: 8.5, radius: 5, pant: 0xf1f5f9, pantMap: tex("cloth", 0xf1f5f9, 0xcbd5e1, [1, 2]), skin: 0xc99468, shoe: 0x8a5e38, pantFull: true, footLength: 12, footRadius: 5.6 },
+};
+
 function buildHero(heroId) {
   const hero = getHero(heroId);
-  const state = { tongue: null, flames: [], orbs: [], smoke: [], face: null, arms: null, fan: null };
-  const model = (HERO_BUILDERS[hero.id] ?? buildWarok)(hero, state);
+  const state = { tongue: null, flames: [], orbs: [], smoke: [], face: null, arms: null, fan: null, legs: null, ground: [] };
+  const body = (HERO_BUILDERS[hero.id] ?? buildWarok)(hero, state);
   const holder = new THREE.Group();
+  // kaki menapak tanah; tubuh (dan bob-nya) diangkat setinggi kaki
+  const legStyle = HERO_LEGS[hero.id] ?? HERO_LEGS.bastion;
+  state.legs = addLegs(holder, legStyle);
+  for (const piece of state.ground) holder.add(piece);
+  const model = new THREE.Group();
+  const raised = new THREE.Group();
+  raised.position.y = legStyle.length;
+  raised.add(body);
+  model.add(raised);
   holder.add(model);
   state.face && (state.face.blinkPhase = Math.random() * 3);
   return { holder, model, state };
@@ -762,6 +822,14 @@ function animateHero(state, time, pose = {}) {
     arms.right.rotation.x = arms.rest.right.x - swing - idle - attack * 1.5;
     arms.right.rotation.z = arms.rest.right.z - attack * 0.35;
     arms.left.rotation.z = arms.rest.left.z + attack * 0.12;
+  }
+
+  const legs = state.legs;
+  if (legs) {
+    // langkah berlawanan dengan lengan; berhenti rapat saat diam
+    const stride = Math.sin(time * 11) * 0.8 * speed;
+    legs.left.rotation.x = -stride;
+    legs.right.rotation.x = stride;
   }
   setExpression(state.face, pose.expression ?? "idle", time);
 }
@@ -1947,7 +2015,7 @@ export function drawHeroPortrait3D(target, heroId, time, options = {}) {
   const aspect = studio.camera.aspect;
   const distance = aspect < 0.8 ? 330 : 255;
   studio.camera.position.set(0, 82, distance);
-  studio.camera.lookAt(0, 40 * scale, 0);
+  studio.camera.lookAt(0, 46 * scale, 0);
   studio.gl.render(studio.scene, studio.camera);
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
