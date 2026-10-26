@@ -71,6 +71,52 @@ seperti systemd atau container orchestrator.
 
 `npm run phone` membuka jendela berukuran ponsel (915x412, landscape) lengkap dengan HUD dan kontrol sentuh; **mouse bertindak sebagai jari** (seret joystick, seret tombol serang atau Dash untuk membidik, ketuk minimap untuk sinyal). Pintasan: **F2** putar potret/landscape, **F3** ganti ukuran ponsel, **F12** DevTools.
 
+## Instalasi di HP (Android / iPhone)
+
+Ada dua cara memasang game di HP. Cara paling cepat adalah **PWA lewat browser**
+(tanpa build, tanpa APK). Cara kedua adalah **APK Android native** bila ingin
+aplikasi terpisah.
+
+### Cara 1 — PWA lewat browser (paling mudah)
+
+Berlaku untuk **Android (Chrome)** dan **iPhone (Safari)**.
+
+1. Pastikan HP bisa menjangkau server game:
+   - **Satu Wi-Fi dengan komputer:** jalankan `npm run server` di komputer, lalu
+     catat alamat yang dicetak (mis. `http://192.168.1.20:8787`).
+   - **Lewat internet:** pakai alamat server publik `https://domain-kamu` (lihat
+     bagian *Menghubungkan server internet*).
+2. Buka alamat tersebut di browser HP.
+3. Pasang ke layar utama:
+   - **Android Chrome:** menu **⋮ > Tambahkan ke layar utama** (atau **Instal
+     aplikasi** bila muncul).
+   - **iPhone Safari:** tombol **Bagikan > Tambahkan ke Layar Utama**.
+4. Buka game dari ikon di layar utama. Game berjalan layar penuh dan terkunci
+   **landscape**; putar HP mendatar.
+5. Saat pertama bermain, izinkan akses jaringan/baca penyimpanan bila diminta.
+   Masuk lewat **CARI LAWAN** (online) atau **BUAT ROOM** lalu bagikan kode ke
+   teman.
+
+> Mode terpasang penuh (tanpa bilah alamat) hanya aktif bila alamat memakai
+> **HTTPS**. Lewat `http://` biasa game tetap bisa dimainkan penuh di tab, atau
+> pakai terowongan HTTPS: `cloudflared tunnel --url http://localhost:8787`.
+
+### Cara 2 — APK Android native
+
+1. Build APK dari komputer (lihat bagian *APK Android native* di bawah) atau
+   unduh dari halaman **Releases** repo ini bila tersedia.
+2. Pindahkan file `app-debug.apk` ke HP (kabel USB, Google Drive, atau kirim ke
+   diri sendiri).
+3. Buka file APK di HP. Bila muncul peringatan, aktifkan **Izinkan dari sumber
+   ini** / **Instal aplikasi tidak dikenal** untuk aplikasi pengirim.
+4. Setelah terpasang, buka **Logicodix**. Saat diminta **alamat server**, isi:
+   - `ws://IP-KOMPUTER:8787` bila satu Wi-Fi (IP dicetak `npm run server`), atau
+   - `wss://domain-kamu` bila server publik.
+5. Alamat tersimpan; ubah kapan saja lewat ikon **gerigi** di pojok.
+
+> iPhone tidak mendukung pemasangan file APK. Gunakan **Cara 1** (Safari > Tambah
+> ke Layar Utama).
+
 ## Main di Android
 
 Game berjalan di Chrome Android sebagai web app (PWA); tidak perlu build APK.
