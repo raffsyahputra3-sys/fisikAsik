@@ -1,4 +1,6 @@
 import { AudioEngine } from "./audio.js";
+import { angleToward, collectHitEvents, hpTone, mergeAlert } from "./combat.js";
+import { ScreenFx } from "./fx.js";
 import { GameInput } from "./input.js";
 import { GameClient } from "./net.js";
 import { ArenaRenderer, drawHeroPortrait } from "./render.js";
@@ -65,6 +67,26 @@ const els = {
   eventFeed: $("eventFeed"),
   respawnBanner: $("respawnBanner"),
   clashOverlay: $("clashOverlay"),
+  duelCard: $("duelCard"),
+  combatAlerts: $("combatAlerts"),
+  hitVignette: $("hitVignette"),
+  hitDir: $("hitDir"),
+  selfTrack: $("selfTrack"),
+  selfGhost: $("selfGhost"),
+  selfHpText: $("selfHpText"),
+  selfPanel: $("selfPanel"),
+  enemyTrack: $("enemyTrack"),
+  enemyGhost: $("enemyGhost"),
+  enemyHpText: $("enemyHpText"),
+  duelRole: $("duelRole"),
+  duelCategory: $("duelCategory"),
+  duelTimer: $("duelTimer"),
+  duelTimerFill: $("duelTimerFill"),
+  duelPrompt: $("duelPrompt"),
+  duelOptions: $("duelOptions"),
+  duelResult: $("duelResult"),
+  duelResultTitle: $("duelResultTitle"),
+  duelExplanation: $("duelExplanation"),
   clashCategory: $("clashCategory"),
   clashTimer: $("clashTimer"),
   clashTimerFill: $("clashTimerFill"),
@@ -137,6 +159,17 @@ const els = {
   mvpStats: $("mvpStats"),
   leaveMatchBtn: $("leaveMatchBtn"),
   autoAimToggle: $("autoAimToggle"),
+  fxGrade: $("fxGrade"),
+  fxFlash: $("fxFlash"),
+  fxScare: $("fxScare"),
+  fxLevelSeg: $("fxLevelSeg"),
+  fxTierSeg: $("fxTierSeg"),
+  fxFlashToggle: $("fxFlashToggle"),
+  fxScareToggle: $("fxScareToggle"),
+  fxShakeToggle: $("fxShakeToggle"),
+  fxShakeRange: $("fxShakeRange"),
+  fxPreviewBtn: $("fxPreviewBtn"),
+  settingsDialog: document.querySelector(".settings-dialog"),
   cancelZone: $("cancelZone"),
   minimapSlot: $("minimapSlot"),
 };
@@ -158,6 +191,13 @@ const ACK_ERRORS = {
 };
 
 const audio = new AudioEngine();
+const screenFx = new ScreenFx({
+  grade: els.fxGrade,
+  flash: els.fxFlash,
+  scare: els.fxScare,
+  audio,
+  onTierChange: (tier) => toast(`Efek diturunkan ke kualitas ${tier} agar tetap lancar.`, ""),
+});
 function createRenderer(canvas) {
   if (isWebGLAvailable()) {
     try {
@@ -195,6 +235,13 @@ const ui = {
   state: null,
   matchResult: null,
   activeClash: null,
+  activeDuel: null,
+  hitSeen: new Map(),
+  hitPrimed: false,
+  alerts: { in: null, out: null },
+  alertTimers: { in: 0, out: 0 },
+  lastHitSound: 0,
+  wasCritical: false,
   answered: false,
   selectedOption: null,
   queueStartedAt: 0,
@@ -426,6 +473,12 @@ function handleMessage(message) {
     case "clashResult":
       if (message.clash) syncClash(message.clash);
       break;
+    case "duelStart":
+      if (message.duel) showDuel(message.duel);
+      break;
+    case "duelResult":
+      if (message.duel) showDuelResult(message.duel);
+      break;
     case "quizAck":
       handleQuizAck(message);
       break;
@@ -558,8 +611,98 @@ function handleState(message) {
   if (message.status === "playing" && ui.screen !== "game") enterGame();
   updateInputEnabled();
   updateHud(message);
+  triggerUltimateFx(message);
+  handleCombatEvents(message);
   if (message.clash) syncClash(message.clash);
   else hideClash();
+}
+
+// ---------------------------------------------------------------- notifikasi serangan
+
+function restartAnimation(element, className) {
+  element.classList.remove(className);
+  void element.offsetWidth;
+  element.classList.add(className);
+}
+
+function clearCombatAlerts() {
+  for (const dir of ["in", "out"]) {
+    window.clearTimeout(ui.alertTimers[dir]);
+    ui.alerts[dir] = null;
+  }
+  els.combatAlerts.replaceChildren();
+}
+
+/** Strip notifikasi di atas panel HP sendiri; serangan beruntun dijumlahkan, bukan ditumpuk. */
+function showCombatAlert(event) {
+  const dir = event.dir;
+  const alert = mergeAlert(ui.alerts[dir], event, performance.now());
+  ui.alerts[dir] = alert;
+  let node = els.combatAlerts.querySelector(`.combat-alert.${dir}`);
+  if (!node) {
+    node = document.createElement("div");
+    node.className = `combat-alert ${dir}`;
+    node.append(document.createElement("span"), document.createElement("b"), document.createElement("span"));
+    node.lastChild.className = "alert-hits";
+    if (dir === "in") els.combatAlerts.prepend(node);
+    else els.combatAlerts.append(node);
+  }
+  node.classList.remove("leaving");
+  node.children[0].textContent = alert.label;
+  node.children[1].textContent = `-${Math.round(alert.amount)}`;
+  node.children[2].textContent = alert.hits > 1 ? `x${alert.hits}` : "";
+  window.clearTimeout(ui.alertTimers[dir]);
+  ui.alertTimers[dir] = window.setTimeout(() => {
+    node.classList.add("leaving");
+    ui.alertTimers[dir] = window.setTimeout(() => {
+      node.remove();
+      ui.alerts[dir] = null;
+    }, 260);
+  }, 1500);
+}
+
+function handleCombatEvents(state) {
+  if (!state?.players) return;
+  const selfId = state.you ?? ui.selfId;
+  const prime = !ui.hitPrimed;
+  ui.hitPrimed = true;
+  for (const event of collectHitEvents(state.players, ui.hitSeen, selfId, { prime })) {
+    showCombatAlert(event);
+    if (event.dir === "in") {
+      restartAnimation(els.hitVignette, "on");
+      const self = state.players.find((player) => player.id === selfId);
+      if (self && event.source) {
+        els.hitDir.style.transform = `rotate(${angleToward(self, event.source)}rad)`;
+        restartAnimation(els.hitDir, "on");
+      }
+      const now = performance.now();
+      if (now - ui.lastHitSound > 160) {
+        ui.lastHitSound = now;
+        audio.hit();
+      }
+      renderer.addFloater?.({ targetId: selfId, text: `-${event.hit.amount}`, color: "#ff8aa0" });
+    } else {
+      renderer.addFloater?.({ targetId: event.target.id, text: `-${event.hit.amount}`, color: "#ffe36d" });
+    }
+  }
+  // peringatan sekali saat HP turun ke zona kritis
+  const self = state.players.find((player) => player.id === selfId);
+  if (self) {
+    const critical = self.alive && self.hp / Math.max(1, self.maxHp) <= 0.3;
+    if (critical && !ui.wasCritical) toast("HP KRITIS! Mundur atau cari perlindungan.", "bad");
+    ui.wasCritical = critical;
+  }
+}
+
+// Ultimate sendiri (Super turun tajam) memicu efek layar; ultimate lawan tidak, demi keterbacaan.
+function triggerUltimateFx(state) {
+  const self = selfPlayer(state);
+  if (!self) return;
+  const previous = ui.prevSuper;
+  ui.prevSuper = self.super;
+  if (previous !== undefined && self.alive && self.super < previous - 40) {
+    screenFx.trigger(self.heroId, { shakeTarget: els.gameCanvas });
+  }
 }
 
 function selfPlayer(state = ui.state) {
@@ -588,6 +731,10 @@ function enemyPlayer(state = ui.state) {
 }
 
 function handleQuizAck(message) {
+  if (String(message.clashId ?? "").startsWith("duel-")) {
+    handleDuelAck(message);
+    return;
+  }
   if (!message.accepted) {
     ui.answered = false;
     ui.selectedOption = null;
@@ -618,6 +765,7 @@ function handleMatchEnd(message) {
   ui.matchResult = message;
   input.setEnabled(false);
   hideClash();
+  hideDuel();
   const self = Array.isArray(message.players)
     ? message.players.find((player) => player.id === ui.selfId)
     : null;
@@ -695,6 +843,11 @@ function handleLeft() {
 }
 
 function resetMatchUI() {
+  ui.prevSuper = undefined;
+  ui.hitSeen = new Map();
+  ui.hitPrimed = false;
+  ui.wasCritical = false;
+  clearCombatAlerts();
   ui.state = null;
   ui.matchResult = null;
   ui.lobby = null;
@@ -704,6 +857,7 @@ function resetMatchUI() {
   ui.selectedOption = null;
   ui.lastFeedKey = "";
   hideClash();
+  hideDuel();
   els.resultOverlay.classList.add("hidden");
   els.reconnectOverlay.classList.add("hidden");
   els.eventFeed.replaceChildren();
@@ -729,7 +883,11 @@ function updateHud(state) {
     els.selfLevel.textContent = `LV ${self.level}`;
     const hpRatio = clamp01(self.hp / Math.max(1, self.maxHp));
     els.selfHealth.style.width = `${hpRatio * 100}%`;
+    els.selfGhost.style.width = `${hpRatio * 100}%`;
     els.selfShield.style.width = `${clamp01(self.shield / Math.max(1, self.maxHp)) * 100}%`;
+    els.selfHpText.textContent = `${Math.max(0, Math.ceil(self.hp))} / ${self.maxHp}`;
+    els.selfTrack.dataset.tone = self.alive ? hpTone(hpRatio) : "ok";
+    els.selfPanel.classList.toggle("low", self.alive && hpRatio <= 0.3);
     els.selfStats.textContent = `${self.stats.kills} KO / ${self.stats.deaths} MATI`;
     els.selfStatus.textContent = self.alive
       ? self.edge
@@ -759,7 +917,9 @@ function updateHud(state) {
     els.enemyLevel.textContent = `LV ${enemy.level}`;
     const hpRatio = clamp01(enemy.hp / Math.max(1, enemy.maxHp));
     els.enemyHealth.style.width = `${hpRatio * 100}%`;
+    els.enemyGhost.style.width = `${hpRatio * 100}%`;
     els.enemyShield.style.width = `${clamp01(enemy.shield / Math.max(1, enemy.maxHp)) * 100}%`;
+    els.enemyHpText.textContent = `${Math.max(0, Math.ceil(enemy.hp))} / ${enemy.maxHp}`;
     els.enemyStats.textContent = `${enemy.stats.kills} KO / ${enemy.stats.deaths} MATI`;
     els.enemyStatus.textContent = enemy.bot
       ? "AI TAKEOVER"
@@ -859,6 +1019,7 @@ function setCooldown(ability, remaining, total) {
 function updateStatusChips(self) {
   const chips = [];
   if (self.edge) chips.push(["edge", `PHYSICS EDGE ${Math.ceil(self.edgeRemaining / 1000)}s`]);
+  if (self.duelEdge) chips.push(["edge", `EDGE KECIL ${Math.ceil(self.duelEdgeRemaining / 1000)}s`]);
   if (self.slowed) chips.push(["slow", `MOMENTUM LOSS ${Math.ceil(self.slowRemaining / 1000)}s`]);
   if (self.insight > 0) chips.push(["insight", `INSIGHT x${self.insight}`]);
   if (self.shielded) chips.push(["", `SHIELD ${Math.round(self.shield)}`]);
@@ -970,6 +1131,7 @@ function bootLocked(clash, active) {
 }
 
 function tickClashTimer() {
+  tickDuelTimer();
   const clash = ui.activeClash;
   if (!clash || els.clashOverlay.classList.contains("hidden")) return;
   if (clash.phase !== "active") {
@@ -1007,9 +1169,128 @@ function answerClash(index) {
   updateClash(clash);
 }
 
+// ---------------------------------------------------------------- duel jawab
+
+const DUEL_RESULT_MS = 1500;
+let duelHideTimer = 0;
+
+function showDuel(duel) {
+  window.clearTimeout(duelHideTimer);
+  ui.activeDuel = { ...duel, answered: false, selected: null };
+  els.duelCard.classList.remove("hidden");
+  els.duelCard.classList.toggle("defend", duel.role === "victim");
+  els.duelRole.textContent = duel.role === "attacker" ? "SERANG" : "TANGKIS";
+  els.duelCategory.textContent = upper(duel.category);
+  els.duelPrompt.textContent = duel.prompt;
+  els.duelResult.classList.add("hidden");
+  const fragment = document.createDocumentFragment();
+  duel.options.forEach((option, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "clash-option";
+    button.dataset.index = String(index);
+    const key = document.createElement("span");
+    key.className = "option-key";
+    key.textContent = String(index + 1);
+    const label = document.createElement("span");
+    label.textContent = option;
+    button.append(key, label);
+    button.addEventListener("click", () => answerDuel(index));
+    fragment.append(button);
+  });
+  els.duelOptions.replaceChildren(fragment);
+  audio.clashStart();
+  tickDuelTimer();
+}
+
+function answerDuel(index) {
+  const duel = ui.activeDuel;
+  if (!duel || duel.answered || duel.resolved) return;
+  if (!client?.send({ type: "quizAnswer", clashId: duel.id, option: index })) {
+    toast("Tidak terhubung ke server.", "bad");
+    return;
+  }
+  duel.answered = true;
+  duel.selected = index;
+  for (const button of els.duelOptions.querySelectorAll(".clash-option")) {
+    button.disabled = true;
+    button.classList.toggle("dimmed", Number(button.dataset.index) !== index);
+  }
+}
+
+function handleDuelAck(message) {
+  const duel = ui.activeDuel;
+  if (!message.accepted) {
+    if (duel && duel.id === message.clashId && !duel.resolved) {
+      duel.answered = false;
+      duel.selected = null;
+      for (const button of els.duelOptions.querySelectorAll(".clash-option")) {
+        button.disabled = false;
+        button.classList.remove("dimmed");
+      }
+    }
+    if (message.reason !== "clash-ended" && message.reason !== "timeout") {
+      toast(ACK_ERRORS[message.reason] || "Jawaban ditolak server.", "bad");
+    }
+    return;
+  }
+  if (message.correct) audio.correct();
+  else audio.wrong();
+}
+
+const DUEL_RESULT_TEXT = {
+  attackerWins: { attacker: ["SERANGAN KENA!", true], victim: ["KAMU KALAH CEPAT", false] },
+  victimWins: { attacker: ["SERANGAN GAGAL: LAWAN LEBIH CEPAT", false], victim: ["SERANGAN DITANGKIS! EDGE KECIL", true] },
+  bothFail: { attacker: ["SERANGAN GAGAL", false], victim: ["TIDAK ADA JAWABAN BENAR: MOMENTUM LOSS", false] },
+  cancelled: { attacker: ["DUEL DIBATALKAN", true], victim: ["DUEL DIBATALKAN", true] },
+};
+
+function showDuelResult(result) {
+  const duel = ui.activeDuel;
+  if (!duel || duel.id !== result.id) return;
+  duel.resolved = true;
+  const [title, good] = DUEL_RESULT_TEXT[result.outcome]?.[result.role] ?? ["DUEL SELESAI", true];
+  els.duelResultTitle.textContent = title;
+  els.duelExplanation.textContent = result.outcome === "cancelled" ? "" : result.explanation || "";
+  els.duelResult.classList.toggle("lost", !good);
+  els.duelResult.classList.remove("hidden");
+  els.duelTimer.textContent = "0.0";
+  els.duelTimerFill.style.width = "0%";
+  for (const button of els.duelOptions.querySelectorAll(".clash-option")) {
+    const index = Number(button.dataset.index);
+    button.disabled = true;
+    button.classList.remove("correct", "wrong", "dimmed");
+    if (result.outcome === "cancelled") continue;
+    if (index === result.correctIndex) button.classList.add("correct");
+    else if (index === result.yourOption) button.classList.add("wrong");
+    else button.classList.add("dimmed");
+  }
+  window.clearTimeout(duelHideTimer);
+  duelHideTimer = window.setTimeout(hideDuel, result.outcome === "cancelled" ? 400 : DUEL_RESULT_MS);
+}
+
+function tickDuelTimer() {
+  const duel = ui.activeDuel;
+  if (!duel || duel.resolved) return;
+  const remaining = Math.max(0, duel.endsAt - serverNow());
+  const total = Math.max(1, duel.endsAt - duel.startedAt);
+  els.duelTimer.textContent = (remaining / 1000).toFixed(1);
+  els.duelTimerFill.style.width = `${clamp01(remaining / total) * 100}%`;
+}
+
+function hideDuel() {
+  window.clearTimeout(duelHideTimer);
+  ui.activeDuel = null;
+  els.duelCard.classList.add("hidden");
+  els.duelOptions.replaceChildren();
+  els.duelResult.classList.add("hidden");
+}
+
 function handleAction(kind, value) {
   if (kind === "quiz") {
-    if (input.enabled) answerClash(Number(value));
+    if (!input.enabled) return;
+    if (ui.activeDuel && els.clashOverlay.classList.contains("hidden")) answerDuel(Number(value));
+    else answerClash(Number(value));
     return;
   }
   if (!input.enabled) return;
@@ -1223,6 +1504,60 @@ function openSettings() {
 
 function closeSettings() {
   els.settingsModal.classList.add("hidden");
+}
+
+function syncFxUI() {
+  const settings = screenFx.settings;
+  for (const button of els.fxLevelSeg.querySelectorAll("[data-fx-level]")) {
+    button.classList.toggle("active", button.dataset.fxLevel === settings.level);
+  }
+  for (const button of els.fxTierSeg.querySelectorAll("[data-fx-tier]")) {
+    button.classList.toggle("active", button.dataset.fxTier === settings.tier);
+  }
+  for (const [button, on] of [
+    [els.fxFlashToggle, settings.flash],
+    [els.fxScareToggle, settings.jumpscare],
+    [els.fxShakeToggle, settings.shake],
+  ]) {
+    button.classList.toggle("active", on);
+    button.textContent = on ? "AKTIF" : "MATI";
+  }
+  els.fxShakeRange.value = String(Math.round(settings.shakeIntensity * 100));
+  els.fxShakeRange.disabled = !settings.shake;
+}
+
+function bindFxSettings() {
+  els.fxLevelSeg.addEventListener("click", (event) => {
+    const level = event.target.closest("[data-fx-level]")?.dataset.fxLevel;
+    if (!level) return;
+    screenFx.update({ level });
+    syncFxUI();
+    audio.click();
+  });
+  els.fxTierSeg.addEventListener("click", (event) => {
+    const tier = event.target.closest("[data-fx-tier]")?.dataset.fxTier;
+    if (!tier) return;
+    screenFx.update({ tier });
+    syncFxUI();
+    audio.click();
+  });
+  for (const [button, key] of [
+    [els.fxFlashToggle, "flash"],
+    [els.fxScareToggle, "jumpscare"],
+    [els.fxShakeToggle, "shake"],
+  ]) {
+    button.addEventListener("click", () => {
+      screenFx.update({ [key]: !screenFx.settings[key] });
+      syncFxUI();
+      audio.click();
+    });
+  }
+  els.fxShakeRange.addEventListener("input", () => {
+    screenFx.update({ shakeIntensity: Number(els.fxShakeRange.value) / 100 });
+  });
+  els.fxPreviewBtn.addEventListener("click", () => {
+    screenFx.trigger(ui.heroId, { shakeTarget: els.settingsDialog });
+  });
 }
 
 function syncAutoAimUI() {
@@ -2029,6 +2364,9 @@ function startFrames() {
     requestAnimationFrame(frame);
     if (document.hidden) return;
     tickClashTimer();
+    const inGame = ui.screen === "game";
+    if (screenFx.active !== inGame) screenFx.setActive(inGame);
+    screenFx.frame(now);
     updateQueueClock();
     updateRoomCountdown();
     if (ui.screen === "select") updateSelectTimer();
@@ -2068,6 +2406,8 @@ function init() {
     ui.autoAim = true;
   }
   loadProfile();
+  syncFxUI();
+  bindFxSettings();
   buildHeroPicker();
   selectHero(ui.heroId);
   syncAudioUI();

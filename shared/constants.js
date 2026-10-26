@@ -49,6 +49,28 @@ export const CLASH = Object.freeze({
   edgeKnockback: 1.35,
 });
 
+/**
+ * Duel jawab: saat hero menyerang hero lawan dalam jarak serang, keduanya
+ * berebut menjawab soal singkat. Penyerang yang kalah cepat-jawab gagal menyerang.
+ * Semua angka bisa di-tweak tanpa mengubah logika.
+ */
+export const DUEL = Object.freeze({
+  enabled: true,
+  range: 230,
+  aimCone: 0.6,
+  duration: 3,
+  pairCooldown: 3,
+  immunity: 2,
+  edgeDuration: 3,
+  edgeDamage: 1.05,
+  attackerLossDuration: 2,
+  attackerLossSpeed: 0.95,
+  victimLossDuration: 2,
+  victimLossSpeed: 0.9,
+  botDelayMin: 900,
+  botDelayMax: 2700,
+});
+
 export const COMBAT = Object.freeze({
   maxAmmo: 3,
   reloadTime: 1.25,

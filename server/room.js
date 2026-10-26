@@ -4,6 +4,7 @@ import {
   CLASH,
   COMBAT,
   COVERS,
+  DUEL,
   INPUT,
   LANE_IDS,
   LANES,
@@ -65,6 +66,9 @@ export class Room {
     this.createdAt = Date.now();
     this.match = null;
     this.clash = null;
+    this.duels = new Map();
+    this.duelSeq = 0;
+    this.duelPairUntil = new Map();
     this.covers = [];
     this.towers = [];
     this.nexuses = [];
@@ -264,11 +268,16 @@ export class Room {
       insight: 0,
       edgeUntil: 0,
       slowUntil: 0,
+      duelImmuneUntil: 0,
+      duelEdgeUntil: 0,
+      duelSlowUntil: 0,
+      duelSlowFactor: 1,
       reflectUntil: 0,
       guardUntil: 0,
       taliUntil: 0,
       taliReadyAt: 0,
       botQuizPlan: null,
+      lastHit: null,
     };
   }
 
@@ -418,6 +427,8 @@ export class Room {
     this.status = "playing";
     this.countdownAt = null;
     this.clash = null;
+    this.duels.clear();
+    this.duelPairUntil.clear();
     this.usedQuestionIds.clear();
     this.projectiles = [];
     this.minions = [];
@@ -514,6 +525,11 @@ export class Room {
     player.insight = 0;
     player.edgeUntil = 0;
     player.slowUntil = 0;
+    player.duelImmuneUntil = 0;
+    player.duelEdgeUntil = 0;
+    player.duelSlowUntil = 0;
+    player.duelSlowFactor = 1;
+    player.lastHit = null;
     player.reflectUntil = 0;
     player.guardUntil = 0;
     player.guardFactor = 1;
@@ -559,7 +575,7 @@ export class Room {
       return;
     }
 
-    if (!this.clash && this.match.nextClashAt && now >= this.match.nextClashAt) {
+    if (!this.clash && this.duels.size === 0 && this.match.nextClashAt && now >= this.match.nextClashAt) {
       this.startClash(now);
     }
 
@@ -591,6 +607,7 @@ export class Room {
     this.updateMinions(dt, now);
     this.updateTowers(dt, now);
     this.updateBotQuiz(now);
+    this.updateDuels(now);
     this.clearExpiredEffects(now);
 
     if (this.status !== "playing") {
@@ -641,7 +658,10 @@ export class Room {
     if (player.inputMask & INPUT.RIGHT) moveX += 1;
     const move = normalize(moveX, moveY);
 
-    const slowFactor = now < player.slowUntil ? CLASH.lossSpeed : 1;
+    const slowFactor = Math.min(
+      now < player.slowUntil ? CLASH.lossSpeed : 1,
+      now < player.duelSlowUntil ? player.duelSlowFactor : 1,
+    );
     const maxSpeed = hero.speed * (1 + (player.level - 1) * 0.012) * slowFactor;
 
     if (player.dashTime > 0) {
@@ -759,13 +779,26 @@ export class Room {
 
   tryBasicAttack(player, aimX, aimY, now) {
     if (player.attackCd > 0 || player.ammo <= 0) return;
+    // selama duel jawabnya berjalan, penyerang menunggu hasilnya
+    if (this.duelAsAttacker(player.id)) return;
     const hero = getHero(player.heroId);
-    const edge = now < player.edgeUntil;
-    const damage =
-      (hero.damage + (player.level - 1) * 1.5) * (edge ? CLASH.edgeDamage : 1);
-    const knockback = hero.knockback * (edge ? CLASH.edgeKnockback : 1);
+    const victim = this.findDuelTarget(player, aimX, aimY, now);
     player.ammo -= 1;
     player.attackCd = hero.attackInterval;
+    if (victim) {
+      this.openDuel(player, victim, aimX, aimY, now);
+      return;
+    }
+    this.fireBasicShot(player, aimX, aimY, now);
+  }
+
+  fireBasicShot(player, aimX, aimY, now) {
+    const hero = getHero(player.heroId);
+    const edge = now < player.edgeUntil;
+    const duelEdge = now < player.duelEdgeUntil ? DUEL.edgeDamage : 1;
+    const damage =
+      (hero.damage + (player.level - 1) * 1.5) * (edge ? CLASH.edgeDamage : 1) * duelEdge;
+    const knockback = hero.knockback * (edge ? CLASH.edgeKnockback : 1);
     const startX = player.x + aimX * (player.radius + 8);
     const startY = player.y + aimY * (player.radius + 8);
     this.spawnProjectile({
@@ -1152,7 +1185,7 @@ export class Room {
           if (projectile.explodeRadius) {
             this.explodeProjectile(projectile, now);
           } else {
-            this.applyPlayerDamage(target, projectile.damage, source, now);
+            this.applyPlayerDamage(target, projectile.damage, source, now, projectile.type === "tower" ? "tower" : "other");
             this.applyKnockback(target, projectile, projectile.knockback);
             this.addEffect("hit", projectile.x, projectile.y, now, {
               radius: 30,
@@ -1293,7 +1326,7 @@ export class Room {
     target.vy += direction.y * push;
   }
 
-  applyPlayerDamage(target, amount, source = null, now = Date.now()) {
+  applyPlayerDamage(target, amount, source = null, now = Date.now(), kind = "other") {
     if (!target.alive || amount <= 0 || now < target.invulnUntil) return 0;
     let remaining = amount;
     if (now < target.guardUntil) remaining *= target.guardFactor;
@@ -1320,6 +1353,13 @@ export class Room {
         source.super = Math.min(COMBAT.superMax, source.super + remaining * COMBAT.superPerDamage);
       }
     }
+    // jejak serangan terakhir untuk notifikasi "diserang / menyerang" di client
+    target.lastHit = {
+      by: source && source.id !== target.id ? source.id : null,
+      kind: source && source.id !== target.id ? "hero" : kind,
+      at: now,
+      amount: Math.max(1, Math.round(amount)),
+    };
     if (target.hp <= 0) {
       this.killPlayer(target, source, now);
     }
@@ -1393,6 +1433,9 @@ export class Room {
     target.taliUntil = 0;
     target.edgeUntil = 0;
     target.slowUntil = 0;
+    target.duelEdgeUntil = 0;
+    target.duelSlowUntil = 0;
+    this.cancelDuelsFor(target.id, now);
     target.vx = 0;
     target.vy = 0;
     target.respawnAt = now + MATCH.respawn * 1000;
@@ -1428,6 +1471,8 @@ export class Room {
     player.shieldUntil = 0;
     player.edgeUntil = 0;
     player.slowUntil = 0;
+    player.duelEdgeUntil = 0;
+    player.duelSlowUntil = 0;
     player.invulnUntil = now + 1800;
     player.ammo = COMBAT.maxAmmo;
     player.reload = 0;
@@ -1571,7 +1616,7 @@ export class Room {
           if (minion.attackCd <= 0) {
             minion.attackCd = MINION.interval;
             if (target.kind === "player") {
-              this.applyPlayerDamage(target.entity, MINION.damage, null, now);
+              this.applyPlayerDamage(target.entity, MINION.damage, null, now, "minion");
             } else if (target.kind === "minion") {
               this.damageMinion(target.entity, MINION.damage, null, now);
             } else {
@@ -1798,8 +1843,8 @@ export class Room {
     if (this.feed.length > 10) this.feed.shift();
   }
 
-  startClash(now) {
-    if (this.clash || this.status !== "playing") return;
+  /** Soal acak dari tingkat room; tidak berulang dalam satu match sampai bank habis. */
+  drawQuestion() {
     const levelName = LEVEL_NAMES[this.level - 1];
     let pool = questionsForLevel(levelName).filter(
       (question) => !this.usedQuestionIds.has(question.id),
@@ -1810,6 +1855,12 @@ export class Room {
     }
     const question = pool[Math.floor(Math.random() * pool.length)];
     this.usedQuestionIds.add(question.id);
+    return question;
+  }
+
+  startClash(now) {
+    if (this.clash || this.status !== "playing") return;
+    const question = this.drawQuestion();
 
     this.match.clashCount += 1;
     this.clash = {
@@ -1879,6 +1930,7 @@ export class Room {
   }
 
   answerQuiz(playerId, clashId, option, now = Date.now()) {
+    if (String(clashId).startsWith("duel-")) return this.answerDuelById(playerId, clashId, option, now);
     const player = this.players.get(playerId);
     if (!player || this.status !== "playing") {
       return { accepted: false, reason: "invalid" };
@@ -1961,6 +2013,244 @@ export class Room {
       clash: this.serializeClash(now),
       serverTime: now,
     });
+  }
+
+  // ------------------------------------------------------------ duel jawab
+
+  duelOf(playerId) {
+    for (const duel of this.duels.values()) {
+      if (duel.attackerId === playerId || duel.victimId === playerId) return duel;
+    }
+    return null;
+  }
+
+  duelAsAttacker(playerId) {
+    for (const duel of this.duels.values()) {
+      if (duel.attackerId === playerId) return duel;
+    }
+    return null;
+  }
+
+  duelPairKey(idA, idB) {
+    return idA < idB ? `${idA}|${idB}` : `${idB}|${idA}`;
+  }
+
+  /** Hero lawan terdekat di arah bidik dan dalam jarak serang; null berarti serangan biasa tanpa duel. */
+  findDuelTarget(attacker, aimX, aimY, now) {
+    if (!DUEL.enabled || this.clash || this.status !== "playing") return null;
+    if (this.duelOf(attacker.id)) return null;
+    let best = null;
+    let bestDistance = Infinity;
+    for (const target of this.players.values()) {
+      if (!target.alive || target.slot === attacker.slot) continue;
+      if (attacker.bot && target.bot) continue;
+      if (now < target.duelImmuneUntil || now < target.invulnUntil) continue;
+      if (this.duelOf(target.id)) continue;
+      if (now < (this.duelPairUntil.get(this.duelPairKey(attacker.id, target.id)) ?? 0)) continue;
+      const dx = target.x - attacker.x;
+      const dy = target.y - attacker.y;
+      const distance = Math.hypot(dx, dy) - target.radius;
+      if (distance > DUEL.range) continue;
+      const angle = Math.abs(Math.atan2(aimX * dy - aimY * dx, aimX * dx + aimY * dy));
+      if (angle > DUEL.aimCone) continue;
+      if (distance < bestDistance) {
+        best = target;
+        bestDistance = distance;
+      }
+    }
+    return best;
+  }
+
+  openDuel(attacker, victim, aimX, aimY, now) {
+    const question = this.drawQuestion();
+    this.duelSeq += 1;
+    const duel = {
+      id: `duel-${this.duelSeq}-${question.id}`,
+      attackerId: attacker.id,
+      victimId: victim.id,
+      question,
+      startedAt: now,
+      endsAt: now + DUEL.duration * 1000,
+      aimX,
+      aimY,
+      answers: { attacker: null, victim: null },
+      plans: { attacker: null, victim: null },
+    };
+    this.duels.set(duel.id, duel);
+    for (const [role, player] of [
+      ["attacker", attacker],
+      ["victim", victim],
+    ]) {
+      if (player.bot) {
+        duel.plans[role] = planBotQuiz({
+          level: player.skillLevel,
+          correctIndex: question.answer,
+          now,
+          delayMin: DUEL.botDelayMin,
+          delayMax: DUEL.botDelayMax,
+        });
+      } else {
+        this.send(player, { type: "duelStart", duel: this.serializeDuel(duel, role, now), serverTime: now });
+      }
+    }
+  }
+
+  serializeDuel(duel, role, now) {
+    const opponent = this.players.get(role === "attacker" ? duel.victimId : duel.attackerId);
+    return {
+      id: duel.id,
+      role,
+      opponent: opponent?.name ?? "",
+      category: duel.question.category,
+      level: duel.question.level,
+      prompt: duel.question.prompt,
+      options: duel.question.options,
+      startedAt: duel.startedAt,
+      endsAt: duel.endsAt,
+      remaining: Math.max(0, duel.endsAt - now),
+    };
+  }
+
+  answerDuelById(playerId, duelId, option, now) {
+    const player = this.players.get(playerId);
+    if (!player || this.status !== "playing") return { accepted: false, reason: "invalid" };
+    const duel = this.duels.get(duelId);
+    if (!duel) return { accepted: false, reason: "clash-ended" };
+    return this.answerDuel(player, duel, option, now);
+  }
+
+  answerDuel(player, duel, option, now) {
+    const role =
+      duel.attackerId === player.id ? "attacker" : duel.victimId === player.id ? "victim" : null;
+    if (!role) return { accepted: false, reason: "invalid" };
+    if (now > duel.endsAt) return { accepted: false, reason: "timeout" };
+    if (!Number.isInteger(option) || option < 0 || option > 3) {
+      return { accepted: false, reason: "option" };
+    }
+    if (duel.answers[role]) return { accepted: false, reason: "locked" };
+    const correct = option === duel.question.answer;
+    duel.answers[role] = { option, correct, at: now };
+    if (correct || (duel.answers.attacker && duel.answers.victim)) {
+      this.resolveDuel(duel, now, "answer");
+    }
+    return { accepted: true, correct };
+  }
+
+  updateDuels(now) {
+    if (this.duels.size === 0) return;
+    if (this.status !== "playing") {
+      this.duels.clear();
+      return;
+    }
+    for (const duel of [...this.duels.values()]) {
+      const attacker = this.players.get(duel.attackerId);
+      const victim = this.players.get(duel.victimId);
+      if (!attacker || !victim || !attacker.alive || !victim.alive) {
+        this.resolveDuel(duel, now, "cancel");
+        continue;
+      }
+      for (const role of ["attacker", "victim"]) {
+        const player = role === "attacker" ? attacker : victim;
+        const plan = duel.plans[role];
+        if (!player.bot || !plan || duel.answers[role] || now < plan.at) continue;
+        this.answerDuel(player, duel, plan.option, now);
+        if (!this.duels.has(duel.id)) break;
+      }
+      if (this.duels.has(duel.id) && now >= duel.endsAt) this.resolveDuel(duel, now, "timeout");
+    }
+  }
+
+  cancelDuelsFor(playerId, now) {
+    for (const duel of [...this.duels.values()]) {
+      if (duel.attackerId === playerId || duel.victimId === playerId) {
+        this.resolveDuel(duel, now, "cancel");
+      }
+    }
+  }
+
+  applyDuelSlow(player, factor, seconds, now) {
+    player.duelSlowFactor = now < player.duelSlowUntil ? Math.min(player.duelSlowFactor, factor) : factor;
+    player.duelSlowUntil = Math.max(player.duelSlowUntil, now + seconds * 1000);
+  }
+
+  resolveDuel(duel, now, reason) {
+    if (!this.duels.delete(duel.id)) return;
+    const attacker = this.players.get(duel.attackerId);
+    const victim = this.players.get(duel.victimId);
+    const a = duel.answers.attacker;
+    const v = duel.answers.victim;
+    let outcome;
+    if (reason === "cancel") outcome = "cancelled";
+    else if (a?.correct && !v?.correct) outcome = "attackerWins";
+    else if (v?.correct) outcome = "victimWins";
+    else outcome = "bothFail";
+
+    const effect = { attacker: { penalty: "none", edge: false }, victim: { penalty: "none", edge: false } };
+    if (outcome === "cancelled") {
+      // dibatalkan tanpa penalti: peluru penyerang dikembalikan
+      if (attacker) {
+        attacker.ammo = Math.min(COMBAT.maxAmmo, attacker.ammo + 1);
+        attacker.attackCd = 0;
+      }
+    } else if (attacker && victim) {
+      this.duelPairUntil.set(this.duelPairKey(attacker.id, victim.id), now + DUEL.pairCooldown * 1000);
+      victim.duelImmuneUntil = now + DUEL.immunity * 1000;
+      const victimPenalty = () => {
+        this.applyDuelSlow(victim, DUEL.victimLossSpeed, DUEL.victimLossDuration, now);
+        effect.victim.penalty = "medium";
+      };
+      if (outcome === "attackerWins") {
+        let aimX = victim.x - attacker.x;
+        let aimY = victim.y - attacker.y;
+        const length = Math.hypot(aimX, aimY);
+        if (length > 0.001) {
+          aimX /= length;
+          aimY /= length;
+        } else {
+          aimX = duel.aimX;
+          aimY = duel.aimY;
+        }
+        this.fireBasicShot(attacker, aimX, aimY, now);
+        attacker.duelEdgeUntil = now + DUEL.edgeDuration * 1000;
+        effect.attacker.edge = true;
+        if (v && !v.correct) victimPenalty();
+      } else {
+        this.applyDuelSlow(attacker, DUEL.attackerLossSpeed, DUEL.attackerLossDuration, now);
+        effect.attacker.penalty = "small";
+        if (outcome === "victimWins") {
+          victim.duelEdgeUntil = now + DUEL.edgeDuration * 1000;
+          effect.victim.edge = true;
+          this.addFeed(`${victim.name} menahan serangan ${attacker.name}!`, victim.slot, now);
+        } else {
+          victimPenalty();
+          this.addFeed(`Duel ${attacker.name} vs ${victim.name}: tak ada yang menjawab benar.`, null, now);
+        }
+      }
+    }
+
+    for (const [role, player] of [
+      ["attacker", attacker],
+      ["victim", victim],
+    ]) {
+      if (!player || player.bot) continue;
+      const mine = duel.answers[role];
+      this.send(player, {
+        type: "duelResult",
+        duel: {
+          id: duel.id,
+          role,
+          outcome,
+          youWon:
+            outcome === "attackerWins" ? role === "attacker" : outcome === "victimWins" ? role === "victim" : false,
+          correctIndex: duel.question.answer,
+          explanation: duel.question.explanation,
+          yourOption: mine ? mine.option : null,
+          penalty: effect[role].penalty,
+          edge: effect[role].edge,
+        },
+        serverTime: now,
+      });
+    }
   }
 
   serializeClash(now) {
@@ -2086,8 +2376,11 @@ export class Room {
       insight: player.insight,
       edge: now < player.edgeUntil,
       edgeRemaining: Math.max(0, player.edgeUntil - now),
-      slowed: now < player.slowUntil,
-      slowRemaining: Math.max(0, player.slowUntil - now),
+      slowed: now < player.slowUntil || now < player.duelSlowUntil,
+      slowRemaining: Math.max(0, player.slowUntil - now, player.duelSlowUntil - now),
+      lastHit: player.lastHit ? { ...player.lastHit } : null,
+      duelEdge: now < player.duelEdgeUntil,
+      duelEdgeRemaining: Math.max(0, player.duelEdgeUntil - now),
       dashCd: round(player.dashCd, 2),
       shockCd: round(player.shockCd, 2),
       reflect: now < player.reflectUntil,
@@ -2216,6 +2509,7 @@ export class Room {
     player.connected = false;
     player.socket = null;
     player.disconnectAt = now;
+    this.cancelDuelsFor(playerId, now);
     if (this.status === "playing") {
       player.bot = true;
       player.botQuizPlan = null;
@@ -2259,6 +2553,7 @@ export class Room {
   removePlayer(playerId) {
     const player = this.players.get(playerId);
     if (!player) return;
+    this.cancelDuelsFor(playerId, Date.now());
     this.players.delete(playerId);
     const seatRow = this.teams[player.slot];
     if (seatRow && seatRow[player.seat] === playerId) seatRow[player.seat] = null;

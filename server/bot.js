@@ -6,7 +6,14 @@ const ACCURACY = { 1: 0.5, 2: 0.66, 3: 0.8 };
 const DELAY_MIN = 1300;
 const DELAY_MAX = 4200;
 
-export function planBotQuiz({ level, correctIndex, now, random = Math.random }) {
+export function planBotQuiz({
+  level,
+  correctIndex,
+  now,
+  random = Math.random,
+  delayMin = DELAY_MIN,
+  delayMax = DELAY_MAX,
+}) {
   const accuracy = ACCURACY[level] ?? 0.55;
   const correct = random() < accuracy;
   let option = correctIndex;
@@ -15,7 +22,7 @@ export function planBotQuiz({ level, correctIndex, now, random = Math.random }) 
     option = choices[Math.floor(random() * choices.length)];
   }
   return {
-    at: now + DELAY_MIN + random() * (DELAY_MAX - DELAY_MIN),
+    at: now + delayMin + random() * (delayMax - delayMin),
     option,
     answered: false,
   };

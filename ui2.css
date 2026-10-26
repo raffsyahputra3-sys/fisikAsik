@@ -1750,3 +1750,433 @@ body.native #fullscreenBtn {
     display: grid;
   }
 }
+
+/* ---------------------------------------------------------------- duel jawab */
+
+.duel-card {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  z-index: 14;
+  width: min(380px, 42vw);
+  padding: 8px 10px 9px;
+  transform: translateX(-50%);
+  border: 3px solid #031018;
+  border-radius: 14px;
+  background: linear-gradient(165deg, #fff8df 0%, #ffeab1 100%);
+  color: #17232b;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.35), 0 14px 34px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+  animation: duelIn 0.18s cubic-bezier(0.2, 1.2, 0.35, 1) both;
+}
+
+.duel-card.hidden {
+  display: none;
+}
+
+@keyframes duelIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+.duel-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.duel-role {
+  padding: 4px 7px;
+  border: 2px solid #031018;
+  border-radius: 6px;
+  background: #17232b;
+  color: var(--yellow);
+  font-family: var(--font-display);
+  font-size: 8px;
+  letter-spacing: 1px;
+}
+
+.duel-card.defend .duel-role {
+  background: #7f1d3a;
+  color: #ffe4ea;
+}
+
+.duel-category {
+  color: rgba(23, 35, 43, 0.6);
+  font-family: var(--font-display);
+  font-size: 7px;
+  letter-spacing: 1px;
+}
+
+.duel-timer {
+  margin-left: auto;
+  font-family: var(--font-display);
+  font-size: 16px;
+}
+
+.duel-track {
+  height: 4px;
+  margin: 6px 0 7px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(23, 35, 43, 0.14);
+}
+
+#duelTimerFill {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #f0a10b, #ffd23f);
+  transition: width 0.1s linear;
+}
+
+.duel-prompt {
+  margin: 0 0 7px;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.duel-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.duel-options .clash-option {
+  min-height: 40px;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
+.duel-result {
+  display: grid;
+  gap: 2px;
+  margin-top: 7px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #c8f6df;
+  text-align: center;
+  font-size: 11px;
+}
+
+.duel-result.lost {
+  background: #ffd8e1;
+}
+
+.duel-result.hidden {
+  display: none;
+}
+
+.duel-result strong {
+  font-family: var(--font-display);
+  font-size: 9px;
+  letter-spacing: 0.8px;
+}
+
+@media (max-height: 520px) {
+  .duel-card {
+    top: 52px;
+    width: min(340px, 44vw);
+    padding: 6px 8px 7px;
+  }
+
+  .duel-prompt {
+    margin-bottom: 5px;
+    font-size: 15px;
+  }
+
+  .duel-options .clash-option {
+    min-height: 36px;
+  }
+}
+
+/* ---------------------------------------------------------------- efek layar (ultimate) */
+
+.fx-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.fx-grade,
+.fx-flash,
+.fx-scare {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+
+.fx-scare {
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.fx-scare svg {
+  width: min(62vh, 62vw);
+  height: auto;
+  filter: drop-shadow(0 0 26px rgba(0, 0, 0, 0.8));
+}
+
+.fx-scare .fx-text {
+  color: #fcd34d;
+  font-family: var(--font-display);
+  font-size: min(16vw, 24vh);
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 30px #b45309, 0 6px 0 #451a03;
+}
+
+.settings-group {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.settings-title {
+  display: block;
+  margin: 6px 0 2px;
+  color: var(--muted-2);
+  font-family: var(--font-display);
+  font-size: 8px;
+  letter-spacing: 1.4px;
+}
+
+.seg {
+  display: inline-flex;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+}
+
+.seg button {
+  padding: 7px 10px;
+  border: 0;
+  background: rgba(2, 14, 22, 0.5);
+  color: var(--muted-2);
+  font-family: var(--font-display);
+  font-size: 7px;
+  letter-spacing: 0.8px;
+}
+
+.seg button.active {
+  background: rgba(92, 230, 168, 0.16);
+  color: var(--good);
+}
+
+.fx-range {
+  width: 130px;
+  accent-color: #5ce6a8;
+}
+
+/* dialog pengaturan bisa di-scroll di layar pendek (HP landscape) */
+.settings-dialog {
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@media (max-height: 520px) {
+  .settings-dialog {
+    padding: 16px 20px;
+  }
+}
+
+/* ---------------------------------------------------------------- health bar & notifikasi serangan */
+
+.health-track {
+  height: 18px;
+}
+
+.health-ghost {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 100%;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #fff3b0, #f5b524);
+  opacity: 0.8;
+  transition: width 0.55s ease-out 0.35s;
+}
+
+.health-text {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.4px;
+  text-shadow: 0 1px 0 #031018, 0 0 4px #031018;
+  pointer-events: none;
+}
+
+.health-track[data-tone="warn"] .health-fill {
+  background: linear-gradient(180deg, #ffe58a, #f5b524 62%, #c98a0a);
+}
+
+.health-track[data-tone="critical"] .health-fill {
+  background: linear-gradient(180deg, #ff9aae, #ef4669 62%, #ba2347);
+  animation: hpCritical 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes hpCritical {
+  to {
+    filter: brightness(1.35);
+  }
+}
+
+.combatant-panel.self.low {
+  border-color: #ff4d6d;
+  animation: panelLow 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes panelLow {
+  to {
+    box-shadow: 0 0 0 2px rgba(255, 77, 109, 0.55), 0 0 18px rgba(255, 77, 109, 0.45);
+  }
+}
+
+.self-cluster {
+  position: relative;
+}
+
+.combat-alerts {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  left: 0;
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  pointer-events: none;
+}
+
+.combat-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 5px 10px;
+  border: 2px solid #031018;
+  border-radius: 8px;
+  font-family: var(--font-display);
+  font-size: 9px;
+  letter-spacing: 0.7px;
+  white-space: nowrap;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+  animation: alertIn 0.16s ease-out both;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.combat-alert.in {
+  background: linear-gradient(180deg, #ff7b92, #d4294a);
+  color: #fff;
+}
+
+.combat-alert.out {
+  background: linear-gradient(180deg, #ffe58a, #f0a10b);
+  color: #2a1700;
+  font-size: 8px;
+}
+
+.combat-alert b {
+  font-size: 12px;
+}
+
+.combat-alert .alert-hits {
+  opacity: 0.8;
+  font-size: 8px;
+}
+
+.combat-alert.leaving {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+@keyframes alertIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.92);
+  }
+}
+
+.hit-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 52%, rgba(225, 29, 72, 0.6) 100%);
+}
+
+.hit-vignette.on {
+  animation: hitVignette 0.45s ease-out;
+}
+
+@keyframes hitVignette {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.hit-dir {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 13;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.hit-dir i {
+  position: absolute;
+  top: calc(-1 * clamp(70px, 26vh, 190px));
+  left: -18px;
+  width: 36px;
+  height: 22px;
+  background: #ff4d6d;
+  clip-path: polygon(50% 0, 100% 100%, 50% 72%, 0 100%);
+  filter: drop-shadow(0 0 6px rgba(255, 77, 109, 0.9));
+}
+
+.hit-dir.on {
+  animation: hitDir 0.8s ease-out;
+}
+
+@keyframes hitDir {
+  0% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (max-height: 520px) {
+  .combat-alert {
+    padding: 4px 8px;
+    font-size: 8px;
+  }
+
+  .combat-alert b {
+    font-size: 10px;
+  }
+}

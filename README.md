@@ -228,6 +228,29 @@ Store gunakan `wss://` dan tanda tangani build release.
 
 Setiap kali client web berubah, jalankan `npm run android:sync` lagi sebelum build.
 
+## Notifikasi pertempuran dan health bar
+
+- **Health bar hero** di arena: hijau untuk kamu dan rekan, merah untuk lawan, bingkai
+  emas untuk dirimu, garis skala tiap 50 HP, kilatan putih saat terkena, dan bingkai
+  berdenyut saat HP kritis. Angka damage melayang muncul untuk serangan yang melibatkanmu.
+- **Panel HP** (kamu dan lawan terdekat) menampilkan angka HP, warna yang berubah
+  (hijau, kuning, merah), dan jejak putih-kuning yang memperlihatkan HP yang baru hilang.
+- **Notifikasi** di atas panel HP-mu: `DISERANG <nama/menara/minion> -N` (merah) dan
+  `MENGENAI <nama> -N` (kuning). Serangan beruntun dijumlahkan (`x3`). Saat diserang
+  hero lawan muncul panah arah penyerang dan kilatan merah di tepi layar; saat HP
+  turun ke 30% muncul peringatan HP kritis.
+
+## Efek layar (ultimate)
+
+Saat memakai ultimate, layar mendapat grading warna, kilatan singkat, jumpscare
+kecil, dan getar sesuai hero, lengkap dengan stinger audio. Atur di ikon gerigi >
+**Efek layar**: intensitas **Kalem / Normal / Ganas** (bawaan Normal; jumpscare hanya di Ganas), kualitas
+**Auto / Penuh / Sedang / Ringan**, toggle kilatan, jumpscare, getar layar beserta
+kekuatannya, dan tombol **COBA** untuk melihat efek hero terpilih. Mode Auto
+menurunkan kualitas bila FPS di bawah 25 selama 3 detik, dan pengaturan
+`prefers-reduced-motion` mematikan kilatan, getar, dan jumpscare. Efek murni visual:
+tidak mengubah gameplay. Config per hero ada di `shared/fx.js`.
+
 ## Kontrol
 
 | Aksi | Keyboard / Mouse |
@@ -239,6 +262,17 @@ Setiap kali client web berubah, jalankan `npm run android:sync` lagi sebelum bui
 | Super | `E` |
 | Jawab Clash | `1`–`4` atau klik opsi |
 | Pengaturan | Ikon gerigi / status server |
+
+**Duel jawab.** Saat kamu menyerang hero lawan yang ada dalam jarak serang dan arah
+bidikmu, tembakan ditahan dan kalian berdua mendapat soal singkat yang sama
+(3 detik). Penyerang yang menjawab benar lebih dulu melepas tembakannya dan
+mendapat Edge kecil. Kalau korban lebih cepat, serangan gagal dan penyerang kena
+Momentum Loss kecil. Kalau keduanya salah atau waktu habis, serangan gagal dan
+korban kena Momentum Loss sedang. Setelah duel, korban kebal duel 2 detik dan
+pasangan yang sama baru bisa berduel lagi setelah 3 detik. Tembakan jarak jauh,
+serangan ke minion, menara, atau Nexus, dan bot lawan bot tidak memicu duel.
+Semua angka ada di `DUEL` pada `shared/constants.js`; `DUEL.enabled = false`
+mematikan mekanik ini.
 
 Soal muncul setiap Physics Clash. Jawaban benar pertama memberi **Physics Edge**
 dan **Insight**; jawaban salah memberi **Momentum Loss**. Server menyimpan kunci

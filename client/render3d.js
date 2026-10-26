@@ -2,7 +2,7 @@ import * as THREE from "../assets/vendor/three.module.js";
 import { ARENA, LANES, LANE_IDS, NEXUS, TEAM } from "../shared/constants.js";
 import { getHero } from "../shared/heroes.js";
 import { clamp } from "../shared/physics.js";
-import { ArenaRenderer, TEAM_COLORS, drawHeroPortrait } from "./render.js";
+import { ArenaRenderer, TEAM_COLORS, drawHeroPortrait, roundedRect } from "./render.js";
 
 const TEAM_HEX = [0x45c3ff, 0xff5d7d];
 const TEAM_DARK_HEX = [0x1274d4, 0xc92e56];
@@ -1164,6 +1164,7 @@ export class ArenaRenderer3D extends ArenaRenderer {
   constructor(canvas) {
     super(canvas);
     this.is3d = true;
+    this.floaters = [];
     this.glCanvas = document.createElement("canvas");
     this.glCanvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;pointer-events:none;";
     canvas.parentElement.insertBefore(this.glCanvas, canvas);
@@ -1775,8 +1776,81 @@ export class ArenaRenderer3D extends ArenaRenderer {
     }
   }
 
+  /** Angka damage melayang di atas hero (hanya untuk serangan yang menyangkut pemain sendiri). */
+  addFloater({ targetId, text, color }) {
+    this.floaters.push({ id: targetId, text, color, born: performance.now(), dx: (Math.random() - 0.5) * 22 });
+    if (this.floaters.length > 24) this.floaters.shift();
+  }
+
+  /**
+   * Bar HP hero: warna kawan (hijau) vs lawan (merah), bingkai emas untuk diri sendiri,
+   * garis skala tiap 50 HP, kilatan putih saat terkena, dan denyut merah saat kritis.
+   */
+  drawUnitBar(ctx, x, y, width, player, { ally, self, hurt, now }) {
+    const ratio = clamp(player.hp / player.maxHp, 0, 1);
+    const shieldRatio = clamp(player.shield / player.maxHp, 0, 1 - ratio);
+    const height = self ? 11 : 9;
+    const palette = ally
+      ? { hi: "#c9ffe2", mid: "#2fd38c", lo: "#0f7a55", edge: "rgba(92, 230, 168, 0.9)" }
+      : { hi: "#ffc2cd", mid: "#ff4d6d", lo: "#a3162f", edge: "rgba(255, 93, 125, 0.95)" };
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = "rgba(3, 16, 24, 0.84)";
+    roundedRect(ctx, -width / 2 - 3, -3, width + 6, height + 6, 6);
+    ctx.fill();
+    ctx.strokeStyle = self ? "#ffe36d" : palette.edge;
+    ctx.lineWidth = self ? 2 : 1.4;
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,0.07)";
+    roundedRect(ctx, -width / 2, 0, width, height, 4);
+    ctx.fill();
+    if (ratio > 0) {
+      const gradient = ctx.createLinearGradient(0, 0, 0, height);
+      gradient.addColorStop(0, palette.hi);
+      gradient.addColorStop(0.45, palette.mid);
+      gradient.addColorStop(1, palette.lo);
+      ctx.fillStyle = gradient;
+      roundedRect(ctx, -width / 2, 0, width * ratio, height, 4);
+      ctx.fill();
+      if (hurt > 0) {
+        ctx.globalAlpha = hurt * 0.75;
+        ctx.fillStyle = "#ffffff";
+        roundedRect(ctx, -width / 2, 0, width * ratio, height, 4);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
+    if (shieldRatio > 0) {
+      ctx.fillStyle = "rgba(140, 229, 255, 0.85)";
+      roundedRect(ctx, -width / 2 + width * ratio, 0, width * shieldRatio, height, 3);
+      ctx.fill();
+    }
+    // garis skala tiap 50 HP (maks 12 ruas) agar terbaca besar-kecilnya HP
+    const ticks = Math.min(12, Math.floor(player.maxHp / 50));
+    ctx.strokeStyle = "rgba(3, 16, 24, 0.55)";
+    ctx.lineWidth = 1;
+    for (let tick = 1; tick <= ticks; tick += 1) {
+      const px = -width / 2 + (width * tick * 50) / player.maxHp;
+      if (px >= width / 2 - 1) break;
+      ctx.beginPath();
+      ctx.moveTo(px, 1);
+      ctx.lineTo(px, height - 1);
+      ctx.stroke();
+    }
+    if (ratio <= 0.25) {
+      ctx.globalAlpha = 0.35 + 0.35 * Math.sin(now * 0.014);
+      ctx.strokeStyle = "#ff3355";
+      ctx.lineWidth = 2.4;
+      roundedRect(ctx, -width / 2 - 3, -3, width + 6, height + 6, 6);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   drawPlayers(ctx, now) {
     const dpr = this.transform.dpr;
+    this.floaters = this.floaters.filter((floater) => now - floater.born < 900);
+    const selfSlot = (this.state.players ?? []).find((candidate) => candidate.id === this.selfId)?.slot;
     for (const player of this.state.players ?? []) {
       const smooth = this.smooth.get(`p:${player.id}`);
       const x = smooth?.x ?? player.x;
@@ -1856,7 +1930,11 @@ export class ArenaRenderer3D extends ArenaRenderer {
       const lift = 92 * (player.radius / 24) * HERO_VISUAL_SCALE;
       this.billboard(ctx, x, y, lift);
       const barWidth = 76;
-      this.drawHealthBar(ctx, 0, -8, barWidth, player.hp, player.maxHp, player.shield, hero.color);
+      const heroEntry = this.heroes.get(player.id);
+      const hurt = heroEntry && heroEntry.hurtUntil > now ? (heroEntry.hurtUntil - now) / 380 : 0;
+      const isSelf = player.id === this.selfId;
+      const ally = isSelf || player.slot === selfSlot;
+      this.drawUnitBar(ctx, 0, -8, barWidth, player, { ally, self: isSelf, hurt, now });
       ctx.fillStyle = "rgba(3, 16, 24, 0.72)";
       ctx.beginPath();
       ctx.roundRect(-barWidth / 2 - 12, -22, 24, 15, 5);
@@ -1865,9 +1943,24 @@ export class ArenaRenderer3D extends ArenaRenderer {
       ctx.font = '700 8px "Trebuchet MS", sans-serif';
       ctx.textAlign = "center";
       ctx.fillText(`${player.level}`, -barWidth / 2, -11);
-      ctx.fillStyle = player.id === this.selfId ? "#ffe36d" : "rgba(255,255,255,0.8)";
+      ctx.fillStyle = player.id === this.selfId ? "#ffe36d" : ally ? "rgba(214, 255, 235, 0.92)" : "rgba(255, 196, 208, 0.95)";
       ctx.font = '700 10px "Trebuchet MS", sans-serif';
       ctx.fillText(player.id === this.selfId ? `${player.name} / YOU` : player.name, 0, -28);
+      for (const floater of this.floaters) {
+        if (floater.id !== player.id) continue;
+        const age = (now - floater.born) / 900;
+        ctx.save();
+        ctx.globalAlpha = 1 - age * age;
+        ctx.font = '900 17px "Trebuchet MS", sans-serif';
+        ctx.textAlign = "center";
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = "rgba(3, 16, 24, 0.9)";
+        ctx.fillStyle = floater.color;
+        const fy = -52 - age * 38;
+        ctx.strokeText(floater.text, floater.dx, fy);
+        ctx.fillText(floater.text, floater.dx, fy);
+        ctx.restore();
+      }
       if (player.id === this.selfId) {
         const bob = Math.sin(now * 0.006) * 3;
         ctx.fillStyle = "#ffe36d";

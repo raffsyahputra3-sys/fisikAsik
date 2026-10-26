@@ -231,7 +231,7 @@
                     <strong id="enemyName">LEAK BALI</strong>
                     <span id="enemyLevel" class="level-chip">LV 1</span>
                   </div>
-                  <div class="health-track"><div id="enemyHealth" class="health-fill"></div><div id="enemyShield" class="shield-fill"></div></div>
+                  <div id="enemyTrack" class="health-track"><div id="enemyGhost" class="health-ghost"></div><div id="enemyHealth" class="health-fill"></div><div id="enemyShield" class="shield-fill"></div><span id="enemyHpText" class="health-text"></span></div>
                   <div class="combatant-meta">
                     <span id="enemyStats">0 KO</span>
                     <span id="enemyStatus">ONLINE</span>
@@ -248,6 +248,8 @@
               </div>
 
               <div id="eventFeed" class="event-feed"></div>
+              <div id="hitVignette" class="hit-vignette" aria-hidden="true"></div>
+              <div id="hitDir" class="hit-dir" aria-hidden="true"><i></i></div>
               <div id="respawnBanner" class="respawn-banner hidden">RESPAWN 5</div>
 
               <div id="clashOverlay" class="clash-overlay hidden" role="dialog" aria-modal="false" aria-label="Physics Clash">
@@ -271,6 +273,21 @@
                 </div>
               </div>
 
+              <div id="duelCard" class="duel-card hidden" role="dialog" aria-modal="false" aria-label="Duel jawab">
+                <div class="duel-head">
+                  <span id="duelRole" class="duel-role">DUEL</span>
+                  <span id="duelCategory" class="duel-category"></span>
+                  <span id="duelTimer" class="duel-timer">3.0</span>
+                </div>
+                <div class="duel-track"><div id="duelTimerFill"></div></div>
+                <p id="duelPrompt" class="duel-prompt"></p>
+                <div id="duelOptions" class="duel-options"></div>
+                <div id="duelResult" class="duel-result hidden">
+                  <strong id="duelResultTitle"></strong>
+                  <span id="duelExplanation"></span>
+                </div>
+              </div>
+
               <div class="hud-bottom">
                 <div class="move-cluster">
                   <div id="movePad" class="move-pad" aria-label="Joystick gerak">
@@ -281,13 +298,14 @@
                 </div>
 
                 <div class="self-cluster">
+                  <div id="combatAlerts" class="combat-alerts" aria-live="polite"></div>
                   <div id="selfPanel" class="combatant-panel self">
                     <div class="combatant-head">
                       <span class="combatant-tag">KAMU</span>
                       <strong id="selfName">WAROK SURO</strong>
                       <span id="selfLevel" class="level-chip">LV 1</span>
                     </div>
-                    <div class="health-track"><div id="selfHealth" class="health-fill"></div><div id="selfShield" class="shield-fill"></div></div>
+                    <div id="selfTrack" class="health-track"><div id="selfGhost" class="health-ghost"></div><div id="selfHealth" class="health-fill"></div><div id="selfShield" class="shield-fill"></div><span id="selfHpText" class="health-text"></span></div>
                     <div class="combatant-meta">
                       <span id="selfStats">0 KO</span>
                       <span id="selfStatus">SIAP</span>
@@ -400,6 +418,46 @@
           <span>Bidik otomatis (sentuh)</span>
           <button id="autoAimToggle" class="toggle-btn active" type="button">AKTIF</button>
         </div>
+        <div class="settings-group">
+          <span class="settings-title">EFEK LAYAR</span>
+          <div class="settings-row">
+            <span>Intensitas</span>
+            <div id="fxLevelSeg" class="seg" role="group" aria-label="Intensitas efek">
+              <button type="button" data-fx-level="kalem">KALEM</button>
+              <button type="button" data-fx-level="normal">NORMAL</button>
+              <button type="button" data-fx-level="ganas">GANAS</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <span>Kualitas efek</span>
+            <div id="fxTierSeg" class="seg" role="group" aria-label="Kualitas efek">
+              <button type="button" data-fx-tier="auto">AUTO</button>
+              <button type="button" data-fx-tier="full">PENUH</button>
+              <button type="button" data-fx-tier="medium">SEDANG</button>
+              <button type="button" data-fx-tier="lite">RINGAN</button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <span>Kilatan (fotosensitif)</span>
+            <button id="fxFlashToggle" class="toggle-btn active" type="button">AKTIF</button>
+          </div>
+          <div class="settings-row">
+            <span>Jumpscare</span>
+            <button id="fxScareToggle" class="toggle-btn active" type="button">AKTIF</button>
+          </div>
+          <div class="settings-row">
+            <span>Getar layar</span>
+            <button id="fxShakeToggle" class="toggle-btn active" type="button">AKTIF</button>
+          </div>
+          <div class="settings-row">
+            <span>Kekuatan getar</span>
+            <input id="fxShakeRange" class="fx-range" type="range" min="0" max="100" step="5" value="100" aria-label="Kekuatan getar layar" />
+          </div>
+          <div class="settings-row">
+            <span>Coba efek hero terpilih</span>
+            <button id="fxPreviewBtn" class="toggle-btn" type="button">COBA</button>
+          </div>
+        </div>
         <div class="settings-actions">
           <button id="leaveMatchBtn" class="mini-btn hidden" type="button">KELUAR PERTANDINGAN</button>
           <button id="saveServerBtn" class="big-btn blue compact" type="button">SIMPAN & SAMBUNG</button>
@@ -413,6 +471,12 @@
       <strong>PUTAR PERANGKAT</strong>
       <span>Mainkan dalam mode landscape.</span>
       <span><b>Ketuk layar</b> untuk memutar otomatis, atau matikan kunci rotasi HP.</span>
+    </div>
+
+    <div id="fxLayer" class="fx-layer" aria-hidden="true">
+      <div id="fxGrade" class="fx-grade"></div>
+      <div id="fxFlash" class="fx-flash"></div>
+      <div id="fxScare" class="fx-scare"></div>
     </div>
 
     <div id="toastStack" class="toast-stack" aria-live="polite"></div>

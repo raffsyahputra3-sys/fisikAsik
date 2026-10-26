@@ -98,6 +98,14 @@ export class AudioEngine {
     this.tone({ frequency: 480, endFrequency: 1400, duration: 0.26, type: "sine", gain: 0.07, delay: 0.04 });
   }
 
+  /** Stinger ultimate: dentuman rendah + desis; `gain` mengikuti level efek. */
+  stinger({ hz = 80, endHz = 45, ms = 600, noise = 0.06, gain = 1 } = {}) {
+    const seconds = ms / 1000;
+    this.tone({ frequency: hz, endFrequency: endHz, duration: seconds, type: "sine", gain: 0.2 * gain });
+    this.tone({ frequency: hz * 2, endFrequency: endHz * 2, duration: seconds * 0.7, type: "triangle", gain: 0.06 * gain });
+    this.noise({ duration: seconds * 0.6, gain: noise * gain, highpass: 220 });
+  }
+
   clashStart() {
     this.tone({ frequency: 880, duration: 0.08, type: "square", gain: 0.07 });
     this.tone({ frequency: 660, duration: 0.08, type: "square", gain: 0.07, delay: 0.1 });
