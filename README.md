@@ -29,6 +29,26 @@ npm start
 Tanpa Electron, client juga dapat dibuka di browser melalui
 `http://127.0.0.1:8787`. Health check tersedia di `/healthz`.
 
+## Main online tanpa satu Wi-Fi (satu perintah)
+
+Tidak perlu HP dan komputer berada di Wi-Fi yang sama. Jalankan:
+
+```bash
+npm run online
+```
+
+Perintah ini menyalakan server game lalu membuat **link publik HTTPS** (mis.
+`https://namacakal.trycloudflare.com`) yang bisa dibuka dari HP/laptop mana pun
+dan di jaringan mana pun, tanpa pengaturan tambahan. Bagikan link itu ke teman,
+lalu pilih **CARI LAWAN** atau **BUAT ROOM**.
+
+- `cloudflared` diunduh otomatis sekali saat pertama dijalankan, lalu tersimpan
+  di `tools/` (tidak ikut git).
+- Biarkan terminal tetap terbuka selama bermain; menutupnya mematikan server.
+- Link berubah setiap kali dijalankan ulang, jadi bagikan link yang baru.
+- Butuh versi online 24 jam tanpa komputer menyala? Pasang server di VPS/host
+  publik seperti dijelaskan di *Menghubungkan server internet*.
+
 ## Mode bermain (tim 3v3, online)
 
 Dua tim berisi maksimal 3 pemain: **Samudra** dan **Merapi**. Ada dua cara masuk
@@ -81,11 +101,10 @@ aplikasi terpisah.
 
 Berlaku untuk **Android (Chrome)** dan **iPhone (Safari)**.
 
-1. Pastikan HP bisa menjangkau server game:
-   - **Satu Wi-Fi dengan komputer:** jalankan `npm run server` di komputer, lalu
-     catat alamat yang dicetak (mis. `http://192.168.1.20:8787`).
-   - **Lewat internet:** pakai alamat server publik `https://domain-kamu` (lihat
-     bagian *Menghubungkan server internet*).
+1. Di komputer, jalankan `npm run online`. Tidak perlu satu Wi-Fi: perintah ini
+   mencetak **link publik HTTPS**, mis. `https://namacakal.trycloudflare.com`.
+   (Alternatif lokal satu Wi-Fi: `npm run server`, lalu pakai
+   `http://IP-KOMPUTER:8787`.)
 2. Buka alamat tersebut di browser HP.
 3. Pasang ke layar utama:
    - **Android Chrome:** menu **⋮ > Tambahkan ke layar utama** (atau **Instal
@@ -98,8 +117,8 @@ Berlaku untuk **Android (Chrome)** dan **iPhone (Safari)**.
    teman.
 
 > Mode terpasang penuh (tanpa bilah alamat) hanya aktif bila alamat memakai
-> **HTTPS**. Lewat `http://` biasa game tetap bisa dimainkan penuh di tab, atau
-> pakai terowongan HTTPS: `cloudflared tunnel --url http://localhost:8787`.
+> **HTTPS**. Link dari `npm run online` sudah HTTPS, jadi langsung bisa dipasang
+> penuh. Lewat `http://` biasa game tetap bisa dimainkan penuh di tab.
 
 ### Cara 2 — APK Android native
 
@@ -109,9 +128,10 @@ Berlaku untuk **Android (Chrome)** dan **iPhone (Safari)**.
    diri sendiri).
 3. Buka file APK di HP. Bila muncul peringatan, aktifkan **Izinkan dari sumber
    ini** / **Instal aplikasi tidak dikenal** untuk aplikasi pengirim.
-4. Setelah terpasang, buka **Logicodix**. Saat diminta **alamat server**, isi:
-   - `ws://IP-KOMPUTER:8787` bila satu Wi-Fi (IP dicetak `npm run server`), atau
-   - `wss://domain-kamu` bila server publik.
+4. Setelah terpasang, buka **Logicodix**. Saat diminta **alamat server**, tempel
+   **link dari `npm run online`** (mis. `https://namacakal.trycloudflare.com`),
+   atau `wss://domain-kamu` bila server publik permanen. Bisa juga
+   `ws://IP-KOMPUTER:8787` untuk satu Wi-Fi.
 5. Alamat tersimpan; ubah kapan saja lewat ikon **gerigi** di pojok.
 
 > iPhone tidak mendukung pemasangan file APK. Gunakan **Cara 1** (Safari > Tambah
@@ -120,6 +140,8 @@ Berlaku untuk **Android (Chrome)** dan **iPhone (Safari)**.
 ## Main di Android
 
 Game berjalan di Chrome Android sebagai web app (PWA); tidak perlu build APK.
+Cara termudah adalah `npm run online` (link publik, tanpa satu Wi-Fi). Langkah di
+bawah ini adalah alternatif lokal satu Wi-Fi.
 
 1. Di komputer: `npm run server`. Server mencetak alamat seperti
    `Android/HP di jaringan yang sama: buka http://192.168.1.20:8787`.
