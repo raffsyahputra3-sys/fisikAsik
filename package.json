@@ -1,0 +1,35 @@
+{
+  "name": "logicodix-momentum-arena",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "description": "MOBA fisika real-time dengan Physics Clash dan native desktop client.",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "node scripts/start.mjs",
+    "server": "node server/index.js",
+    "online": "node scripts/online.mjs",
+    "desktop": "electron .",
+    "test": "node --test test/*.test.js",
+    "check": "node scripts/check.mjs",
+    "build:www": "node scripts/build-www.mjs",
+    "android:sync": "node scripts/build-www.mjs && cap sync android",
+    "android:open": "cap open android",
+    "android:apk": "node scripts/build-www.mjs && cap sync android && cd android && gradlew assembleDebug",
+    "phone": "node scripts/start.mjs --phone"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.5.3",
+    "three": "^0.186.1",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
+    "electron": "^45.0.0"
+  }
+}

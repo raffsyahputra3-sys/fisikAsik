@@ -1,0 +1,15 @@
+node_modules/
+.npm-cache/
+tools/
+dist/
+out/
+*.log
+.DS_Store
+.env
+www/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/capture/
+*.apk

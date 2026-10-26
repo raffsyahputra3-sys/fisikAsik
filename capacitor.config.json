@@ -1,0 +1,14 @@
+{
+  "appId": "com.logicodix.momentumarena",
+  "appName": "Logicodix",
+  "webDir": "www",
+  "backgroundColor": "#04131d",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#04131d"
+  }
+}

@@ -1,0 +1,75 @@
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses > /dev/null 2>&1 || true
+
+      - name: Install Android platform
+        run: sdkmanager "platforms;android-36" > /dev/null 2>&1 || true
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web assets and sync Capacitor
+        env:
+          LOGICODIX_DEFAULT_SERVER: ${{ vars.LOGICODIX_DEFAULT_SERVER }}
+        run: npm run android:sync
+
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Prepare APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk fisikAsik.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fisikAsik-apk
+          path: fisikAsik.apk
+          if-no-files-found: error
+
+      - name: Publish APK release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-latest
+          name: Android APK terbaru
+          body: |
+            APK Android terbaru untuk Logicodix / fisikAsik.
+
+            Pasang di Android (izinkan "Instal aplikasi tidak dikenal"), lalu isi
+            alamat server online saat aplikasi pertama dibuka.
+
+            Build otomatis dari commit ${{ github.sha }}.
+          files: fisikAsik.apk
+          make_latest: true

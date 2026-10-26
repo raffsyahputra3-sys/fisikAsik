@@ -1,4 +1,4 @@
-# Logicodix: Momentum Arena
+﻿# Logicodix: Momentum Arena
 
 MOBA fisika **3v3** real-time yang bisa dimainkan **online lewat internet**: cari
 lawan lewat matchmaking atau buat room privat dan bagikan kodenya ke teman. Slot
@@ -6,6 +6,20 @@ yang belum terisi otomatis diisi bot, jadi pertandingan tetap jalan meski kamu
 bermain sendiri. Dilengkapi **Physics Clash**, server otoritatif, AI takeover saat
 disconnect, dan client desktop Electron. Semua soal wajib bertema fisika dan
 mekanik tempur memakai momentum, impuls, tumbukan, serta proyektil.
+
+<p align="center">
+  <a href="https://github.com/raffsyahputra3-sys/fisikAsik/releases/latest/download/fisikAsik.apk">
+    <img alt="Download APK Android" src="https://img.shields.io/badge/Download-APK%20Android-3DDC84?style=for-the-badge&logo=android&logoColor=white">
+  </a>
+  <a href="https://render.com/deploy?repo=https://github.com/raffsyahputra3-sys/fisikAsik">
+    <img alt="Deploy server online" src="https://img.shields.io/badge/Deploy-Server%20Online-46E3B7?style=for-the-badge&logo=render&logoColor=white">
+  </a>
+</p>
+
+**Native Android + online.** Tekan **Download APK Android**, pasang di HP, lalu
+isi alamat server online (lihat [Server online](#server-online)). APK di-build
+otomatis oleh GitHub Actions setiap push ke `main` dan diunggah ke halaman
+[Releases](https://github.com/raffsyahputra3-sys/fisikAsik/releases).
 
 Dokumen produk lengkap ada di [PRD.md](./PRD.md).
 
@@ -29,9 +43,27 @@ npm start
 Tanpa Electron, client juga dapat dibuka di browser melalui
 `http://127.0.0.1:8787`. Health check tersedia di `/healthz`.
 
-## Main online tanpa satu Wi-Fi (satu perintah)
+## Server online
 
-Tidak perlu HP dan komputer berada di Wi-Fi yang sama. Jalankan:
+APK dan pemain butuh satu server game yang bisa dijangkau dari internet. Pilih
+salah satu:
+
+### A. Permanen di Render (gratis, tombol Deploy)
+
+1. Tekan tombol **Deploy Server Online** di atas, lalu login Render.
+2. Render membaca `render.yaml` di repo ini dan menjalankan `npm run server`.
+3. Setelah selesai, salin URL `https://nama-layanan.onrender.com`.
+4. Tempel URL itu di aplikasi (ikon gerigi > **Alamat server**), atau set
+   **repository variable** `LOGICODIX_DEFAULT_SERVER` di GitHub (Settings >
+   Secrets and variables > Actions > Variables), lalu jalankan ulang workflow
+   **Android APK** agar APK berikutnya otomatis terhubung.
+
+> Free tier Render tidur setelah tidak dipakai; kunjungan pertama bisa lambat
+> beberapa detik. WebSocket tetap didukung.
+
+### B. Link publik sementara (tanpa daftar)
+
+Jalankan di komputer:
 
 ```bash
 npm run online
@@ -39,15 +71,13 @@ npm run online
 
 Perintah ini menyalakan server game lalu membuat **link publik HTTPS** (mis.
 `https://namacakal.trycloudflare.com`) yang bisa dibuka dari HP/laptop mana pun
-dan di jaringan mana pun, tanpa pengaturan tambahan. Bagikan link itu ke teman,
-lalu pilih **CARI LAWAN** atau **BUAT ROOM**.
+dan di jaringan mana pun. Bagikan link itu ke teman, lalu pilih **CARI LAWAN**
+atau **BUAT ROOM**.
 
-- `cloudflared` diunduh otomatis sekali saat pertama dijalankan, lalu tersimpan
-  di `tools/` (tidak ikut git).
+- `cloudflared` diunduh otomatis sekali, lalu tersimpan di `tools/` (tidak ikut git).
 - Biarkan terminal tetap terbuka selama bermain; menutupnya mematikan server.
 - Link berubah setiap kali dijalankan ulang, jadi bagikan link yang baru.
-- Butuh versi online 24 jam tanpa komputer menyala? Pasang server di VPS/host
-  publik seperti dijelaskan di *Menghubungkan server internet*.
+- APK juga bisa memakai link ini: tempel di **Alamat server** (boleh `https://`).
 
 ## Mode bermain (tim 3v3, online)
 
@@ -60,12 +90,17 @@ pertandingan:
 | Room privat | **BUAT ROOM** lalu bagikan kode | Teman memilih **GABUNG** dan memasukkan kode room. |
 
 Semua pemain terhubung ke server yang sama lewat WebSocket, jadi pertandingan
-berjalan real-time antar perangkat. Agar bisa dimainkan lintas internet, jalankan
-server di VPS/host publik dengan `wss://` (lihat bagian berikut), lalu semua
-pemain mengarahkan client ke alamat server tersebut. Sinyal tim (ketuk minimap)
-dan lineup kedua tim tersedia sepanjang pertandingan.
+berjalan real-time antar perangkat. Agar bisa dimainkan lintas internet, pakai
+server publik dari bagian [Server online](#server-online) (tombol Render atau
+`npm run online`), lalu semua pemain mengarahkan client ke alamat server
+tersebut. Sinyal tim (ketuk minimap) dan lineup kedua tim tersedia sepanjang
+pertandingan.
 
 ## Menghubungkan server internet
+
+Cara paling mudah adalah menekan tombol **Deploy Server Online** di atas; Render
+membaca `render.yaml` dan menjalankan server dengan TLS otomatis. Bagian ini
+untuk hosting manual/VPS.
 
 Server produksi harus berada di belakang TLS (`wss://`). Set alamat server pada
 kolom **Pengaturan > Alamat server WebSocket** di aplikasi, atau melalui query
@@ -93,49 +128,36 @@ seperti systemd atau container orchestrator.
 
 ## Instalasi di HP (Android / iPhone)
 
-Ada dua cara memasang game di HP. Cara paling cepat adalah **PWA lewat browser**
-(tanpa build, tanpa APK). Cara kedua adalah **APK Android native** bila ingin
-aplikasi terpisah.
+### Android — APK native (tombol download)
 
-### Cara 1 — PWA lewat browser (paling mudah)
+1. Tekan tombol **Download APK Android** di bagian atas README (atau buka halaman
+   [Releases](https://github.com/raffsyahputra3-sys/fisikAsik/releases)).
+2. Buka file `fisikAsik.apk` di HP. Bila muncul peringatan, aktifkan **Izinkan
+   dari sumber ini** / **Instal aplikasi tidak dikenal**.
+3. Buka aplikasi **Logicodix**. Saat diminta **alamat server**, tempel alamat
+   server online dari bagian [Server online](#server-online) (boleh diawali
+   `https://` atau `wss://`).
+4. Masuk lewat **CARI LAWAN** (matchmaking) atau **BUAT ROOM** lalu bagikan kode
+   ke teman. Alamat server tersimpan dan bisa diubah lewat ikon **gerigi**.
 
-Berlaku untuk **Android (Chrome)** dan **iPhone (Safari)**.
+APK di-build otomatis oleh GitHub Actions (debug-signed, cukup untuk dipasang
+manual di HP). iPhone tidak bisa memasang APK; gunakan PWA di bawah.
 
-1. Di komputer, jalankan `npm run online`. Tidak perlu satu Wi-Fi: perintah ini
-   mencetak **link publik HTTPS**, mis. `https://namacakal.trycloudflare.com`.
-   (Alternatif lokal satu Wi-Fi: `npm run server`, lalu pakai
-   `http://IP-KOMPUTER:8787`.)
-2. Buka alamat tersebut di browser HP.
-3. Pasang ke layar utama:
+### Android / iPhone — PWA tanpa APK
+
+1. Buka link publik game (dari server Render atau `npm run online`) di browser HP.
+2. Pasang ke layar utama:
    - **Android Chrome:** menu **⋮ > Tambahkan ke layar utama** (atau **Instal
      aplikasi** bila muncul).
    - **iPhone Safari:** tombol **Bagikan > Tambahkan ke Layar Utama**.
-4. Buka game dari ikon di layar utama. Game berjalan layar penuh dan terkunci
+3. Buka game dari ikon di layar utama. Game berjalan layar penuh dan terkunci
    **landscape**; putar HP mendatar.
-5. Saat pertama bermain, izinkan akses jaringan/baca penyimpanan bila diminta.
-   Masuk lewat **CARI LAWAN** (online) atau **BUAT ROOM** lalu bagikan kode ke
+4. Masuk lewat **CARI LAWAN** (online) atau **BUAT ROOM** lalu bagikan kode ke
    teman.
 
 > Mode terpasang penuh (tanpa bilah alamat) hanya aktif bila alamat memakai
-> **HTTPS**. Link dari `npm run online` sudah HTTPS, jadi langsung bisa dipasang
-> penuh. Lewat `http://` biasa game tetap bisa dimainkan penuh di tab.
-
-### Cara 2 — APK Android native
-
-1. Build APK dari komputer (lihat bagian *APK Android native* di bawah) atau
-   unduh dari halaman **Releases** repo ini bila tersedia.
-2. Pindahkan file `app-debug.apk` ke HP (kabel USB, Google Drive, atau kirim ke
-   diri sendiri).
-3. Buka file APK di HP. Bila muncul peringatan, aktifkan **Izinkan dari sumber
-   ini** / **Instal aplikasi tidak dikenal** untuk aplikasi pengirim.
-4. Setelah terpasang, buka **Logicodix**. Saat diminta **alamat server**, tempel
-   **link dari `npm run online`** (mis. `https://namacakal.trycloudflare.com`),
-   atau `wss://domain-kamu` bila server publik permanen. Bisa juga
-   `ws://IP-KOMPUTER:8787` untuk satu Wi-Fi.
-5. Alamat tersimpan; ubah kapan saja lewat ikon **gerigi** di pojok.
-
-> iPhone tidak mendukung pemasangan file APK. Gunakan **Cara 1** (Safari > Tambah
-> ke Layar Utama).
+> **HTTPS**. Server Render dan link `npm run online` sudah HTTPS, jadi langsung
+> bisa dipasang penuh. Lewat `http://` biasa game tetap bisa dimainkan penuh di tab.
 
 ## Main di Android
 
@@ -168,13 +190,22 @@ Hasil (MVP dan papan skor, tombol **Main Lagi** di kanan-bawah).
 
 ## APK Android native (Capacitor)
 
+APK siap pasang tersedia di
+[Releases](https://github.com/raffsyahputra3-sys/fisikAsik/releases). Build
+otomatis lewat GitHub Actions (`.github/workflows/android.yml`) setiap push ke
+`main`; hasilnya juga diunggah sebagai artifact **fisikAsik-apk**.
+
 Proyek Android lengkap ada di `android/` (paket `com.logicodix.momentumarena`).
 Aplikasi membungkus client web di WebView native: layar penuh immersive, terkunci
 landscape, layar tidak padam saat bermain, tombol Kembali Android diarahkan ke menu
 game, ikon dan splash sendiri. Game server tetap berjalan di komputer/VPS.
 
-Yang dibutuhkan (tidak ikut di repo): **Android Studio** (membawa JDK 21 dan Android
-SDK). Capacitor 8 memakai compileSdk 36.
+Kalau ingin APK otomatis terhubung ke server tertentu, set repository variable
+`LOGICODIX_DEFAULT_SERVER` (mis. `https://fisikasik.onrender.com`) di GitHub
+sebelum build. Aplikasi juga tetap bisa mengganti alamat lewat ikon gerigi.
+
+Yang dibutuhkan untuk build lokal (tidak ikut di repo): **Android Studio**
+(membawa JDK 21 dan Android SDK). Capacitor 8 memakai compileSdk 36.
 
 ```
 npm run android:sync     # salin client ke www/ lalu sinkronkan ke proyek Android
@@ -188,12 +219,12 @@ npm run android:apk      # hasil: android/app/build/outputs/apk/debug/app-debug.
 adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Pertama kali dibuka, aplikasi meminta **alamat server**: isi
-`ws://IP-KOMPUTER:8787` (IP dicetak saat `npm run server`; emulator Android memakai
-`ws://10.0.2.2:8787`) atau `wss://domain-kamu` bila server ada di internet.
-Alamat tersimpan; ubah lewat ikon gerigi. Cleartext `ws://` diizinkan di manifest
-agar jaringan lokal berfungsi. Untuk rilis Play Store gunakan `wss://` dan
-tanda tangani build release.
+Pertama kali dibuka, aplikasi meminta **alamat server**: isi URL server online
+(`https://...` atau `wss://...`) dari bagian [Server online](#server-online).
+Untuk jaringan lokal bisa juga `ws://IP-KOMPUTER:8787` (emulator Android memakai
+`ws://10.0.2.2:8787`). Alamat tersimpan; ubah lewat ikon gerigi. Cleartext
+`ws://` diizinkan di manifest agar jaringan lokal berfungsi. Untuk rilis Play
+Store gunakan `wss://` dan tanda tangani build release.
 
 Setiap kali client web berubah, jalankan `npm run android:sync` lagi sebelum build.
 

@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; connect-src ws: wss: http: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data: blob:; font-src 'self'; worker-src 'self'; manifest-src 'self';"
+    />
+    <meta name="theme-color" content="#071d2b" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Logicodix: Momentum Arena</title>
+    <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/assets/icon-192.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/ui2.css" />
+  </head>
+  <body data-screen="home">
+    <canvas id="bgCanvas" aria-hidden="true"></canvas>
+    <div class="bg-vignette" aria-hidden="true"></div>
+
+    <div id="app">
+      <!-- Bilah atas lobi: profil kiri, status & pengaturan kanan -->
+      <header class="v2-topbar">
+        <div class="v2-profile">
+          <div class="brand-mark" aria-hidden="true">L</div>
+          <div class="v2-profile-fields">
+            <label class="v2-label" for="nameInput">PEMAIN</label>
+            <input id="nameInput" class="v2-name" maxlength="14" placeholder="Pilot" autocomplete="off" />
+          </div>
+          <span id="skillPill" class="v2-pill">FISIKA MENENGAH</span>
+        </div>
+        <div class="v2-top-actions">
+          <button id="serverChip" class="server-chip" type="button" title="Status server">
+            <span class="server-dot"></span>
+            <span id="serverLabel">MENGHUBUNGKAN</span>
+          </button>
+          <button id="fullscreenBtn" class="icon-btn" type="button" title="Layar penuh" aria-label="Layar penuh">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
+          </button>
+          <button id="soundBtn" class="icon-btn" type="button" title="Suara" aria-label="Suara">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 9v6h4l5 4V5L9 9H5z" />
+              <path class="sound-wave" d="M17 8c1.2 1.1 2 2.4 2 4s-.8 2.9-2 4" />
+            </svg>
+          </button>
+          <button id="settingsBtn" class="icon-btn" type="button" title="Pengaturan" aria-label="Pengaturan">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z" />
+              <path d="M19.4 13a7.8 7.8 0 0 0 0-2l2-1.5-2-3.5-2.4 1a8 8 0 0 0-1.7-1L15 3.5h-6L8.7 6a8 8 0 0 0-1.7 1l-2.4-1-2 3.5 2 1.5a7.8 7.8 0 0 0 0 2l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 1.7 1l.3 2.5h6l.3-2.5a8 8 0 0 0 1.7-1l2.4 1 2-3.5-2-1.5z" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <main class="v2-main">
+        <!-- 1. LOBI: pusat komando -->
+        <section id="homeScreen" class="screen v2-screen v2-home active" aria-label="Lobi">
+          <aside class="v2-rail-left">
+            <div class="v2-card">
+              <span class="eyebrow">TINGKAT FISIKA</span>
+              <div id="skillPicker" class="segmented v2-skill" role="group" aria-label="Tingkat fisika">
+                <button type="button" data-skill="pemula">Pemula</button>
+                <button type="button" data-skill="menengah" class="active">Menengah</button>
+                <button type="button" data-skill="mahir">Mahir</button>
+              </div>
+            </div>
+            <div id="roomPanel" class="v2-card v2-room-panel hidden">
+              <span class="eyebrow">ROOM PRIVAT</span>
+              <button id="createRoomBtn" class="mini-btn" type="button">BUAT ROOM</button>
+              <div class="join-row">
+                <input
+                  id="roomCodeInput"
+                  class="text-input code-input"
+                  maxlength="6"
+                  placeholder="KODE"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+                <button id="joinRoomBtn" class="mini-btn accent" type="button">GABUNG</button>
+              </div>
+            </div>
+            <p id="modeHint" class="v2-hint">Latihan 3v3 melawan bot. Langsung main, tanpa antre.</p>
+          </aside>
+
+          <div class="v2-stage">
+            <div class="stage-rays" aria-hidden="true"></div>
+            <canvas id="heroPreview" width="480" height="540"></canvas>
+            <div class="v2-hero-meta">
+              <span id="heroRole" class="role-chip">TANK</span>
+              <h1 id="heroName">WAROK SURO</h1>
+              <p id="heroTagline">Dinding bergerak dengan momentum besar.</p>
+              <div id="heroStats" class="hero-stats"></div>
+              <div class="v2-super"><span>SUPER</span><strong id="heroUltimate">Amukan Reog</strong></div>
+            </div>
+          </div>
+
+          <aside class="v2-rail-right">
+            <span class="eyebrow">HERO</span>
+            <div id="heroPicker" class="v2-hero-strip" role="list"></div>
+          </aside>
+
+          <div class="v2-actionbar">
+            <div id="modeTabs" class="v2-modes" role="tablist" aria-label="Mode permainan">
+              <button id="practiceBtn" class="v2-mode active" data-mode="practice" type="button" role="tab">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.4 5.2 5.6.6-4.2 3.8 1.2 5.6L12 15.5 7 18.2l1.2-5.6L4 8.8l5.6-.6L12 3z" /></svg>
+                <span>LATIHAN</span><small>vs Bot</small>
+              </button>
+              <button id="quickBtn" class="v2-mode" data-mode="online" type="button" role="tab">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M4 12h16M12 4c3 3 3 13 0 16M12 4c-3 3-3 13 0 16" /></svg>
+                <span>ONLINE</span><small>Cari lawan</small>
+              </button>
+              <button id="roomModeBtn" class="v2-mode" data-mode="room" type="button" role="tab">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-6 8 6v8H4z" /><path d="M10 19v-5h4v5" /></svg>
+                <span>ROOM</span><small>Teman</small>
+              </button>
+            </div>
+            <button id="playBtn" class="v2-play" type="button">
+              <span id="playMain">MAIN</span>
+              <small id="playSub">3v3 melawan bot</small>
+            </button>
+          </div>
+        </section>
+
+        <!-- 2. MATCHMAKING -->
+        <section id="queueScreen" class="screen v2-screen v2-center" aria-label="Mencari lawan">
+          <div class="v2-dialog">
+            <span class="eyebrow">MATCHMAKING</span>
+            <h2>MENCARI LAWAN</h2>
+            <div class="queue-orbit" aria-hidden="true">
+              <span class="orbit-dot"></span>
+              <span class="orbit-dot second"></span>
+              <span class="orbit-core">3v3</span>
+            </div>
+            <p id="queueText">Menghubungkan ke server...</p>
+            <div class="queue-meta"><span id="queueServer">SERVER</span><span id="queueTime">00:00</span></div>
+            <p class="v2-hint">Slot kosong diisi bot agar langsung bermain.</p>
+          </div>
+          <button id="cancelQueueBtn" class="v2-cta secondary" type="button">BATAL</button>
+        </section>
+
+        <!-- 3. ROOM PRIVAT -->
+        <section id="roomScreen" class="screen v2-screen v2-center" aria-label="Room">
+          <div class="v2-dialog wide">
+            <div class="room-header">
+              <div>
+                <span class="eyebrow">ROOM</span>
+                <h2>SIAP UNTUK CLASH?</h2>
+              </div>
+              <button id="leaveRoomBtn" class="icon-btn small" type="button" aria-label="Keluar room">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+              </button>
+            </div>
+            <div class="room-code-box">
+              <span>KODE ROOM</span>
+              <strong id="roomCode">-----</strong>
+              <button id="copyRoomBtn" class="mini-btn accent" type="button">SALIN</button>
+            </div>
+            <div id="roomPlayers" class="room-players"></div>
+            <div id="roomStatus" class="room-status">Menunggu pemain...</div>
+          </div>
+          <button id="readyBtn" class="v2-cta" type="button">SIAP</button>
+        </section>
+
+        <!-- 4. PILIH HERO -->
+        <section id="selectScreen" class="screen v2-screen v2-select" aria-label="Pilih hero">
+          <div class="v2-select-head">
+            <div>
+              <span class="eyebrow">PILIH HERO</span>
+              <h2 id="selectTitle">TIM KAMU</h2>
+            </div>
+            <div class="v2-timer" aria-live="off"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="21" class="ring-bg" /><circle id="selectRing" cx="24" cy="24" r="21" class="ring-fg" /></svg><strong id="selectTimer">25</strong></div>
+          </div>
+          <div class="v2-select-body">
+            <div id="selectAllies" class="v2-team ally"></div>
+            <div class="v2-select-center">
+              <div id="roleFilter" class="v2-chips" role="group" aria-label="Filter peran"></div>
+              <div id="selectGrid" class="v2-grid" role="list"></div>
+              <div id="selectDetail" class="v2-detail"></div>
+            </div>
+            <div id="selectEnemies" class="v2-team enemy"></div>
+          </div>
+          <button id="lockBtn" class="v2-cta" type="button">KUNCI PILIHAN</button>
+        </section>
+
+        <!-- 5. LOADING -->
+        <section id="loadingScreen" class="screen v2-screen v2-loading" aria-label="Memuat pertandingan">
+          <div class="v2-load-top">
+            <div id="loadAllies" class="v2-load-team ally"></div>
+            <div class="v2-vs">VS</div>
+            <div id="loadEnemies" class="v2-load-team enemy"></div>
+          </div>
+          <div class="v2-load-center">
+            <span class="eyebrow">TIPS</span>
+            <p id="loadTip">Menyiapkan arena...</p>
+          </div>
+          <div class="v2-load-bottom">
+            <div class="load-track"><i id="loadFill"></i></div>
+            <span id="loadStep">Memuat aset (1/4)</span>
+          </div>
+        </section>
+
+        <!-- 6. DI DALAM PERTANDINGAN -->
+        <section id="gameScreen" class="screen game-screen" aria-label="Pertandingan">
+          <div class="game-frame">
+            <canvas id="gameCanvas" aria-label="Arena pertempuran"></canvas>
+
+            <div class="hud v2-hud">
+              <div class="hud-left">
+                <div id="minimapSlot" class="minimap-slot"></div>
+                <div id="teamPanel" class="team-panel"></div>
+              </div>
+
+              <div class="hud-center">
+                <div class="timer-chip"><span class="timer-dot"></span><strong id="matchTimer">08:00</strong></div>
+                <div class="score-line"><b id="scoreBlue" class="blue">0</b><span>KO</span><b id="scoreRed" class="red">0</b></div>
+                <div id="objectiveStatus" class="objective-status">HANCURKAN MENARA</div>
+                <div id="nextClash" class="next-clash">CLASH 0:20</div>
+              </div>
+
+              <div class="hud-right">
+                <div id="enemyPanel" class="combatant-panel enemy">
+                  <div class="combatant-head">
+                    <span class="combatant-tag enemy">LAWAN</span>
+                    <strong id="enemyName">LEAK BALI</strong>
+                    <span id="enemyLevel" class="level-chip">LV 1</span>
+                  </div>
+                  <div class="health-track"><div id="enemyHealth" class="health-fill"></div><div id="enemyShield" class="shield-fill"></div></div>
+                  <div class="combatant-meta">
+                    <span id="enemyStats">0 KO</span>
+                    <span id="enemyStatus">ONLINE</span>
+                  </div>
+                </div>
+                <div class="tower-row">
+                  <div class="tower-readout"><span class="tower-pip azure"></span><span id="towerStatusBlue">MENARA MUARO JAMBI</span></div>
+                  <div class="tower-readout"><span class="tower-pip crimson"></span><span id="towerStatusRed">MENARA KOTAGEDE</span></div>
+                </div>
+                <div id="matchLevel" class="match-level">FISIKA MENENGAH</div>
+                <button id="menuBtn" class="icon-btn small hud-menu" type="button" aria-label="Menu">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14" /></svg>
+                </button>
+              </div>
+
+              <div id="eventFeed" class="event-feed"></div>
+              <div id="respawnBanner" class="respawn-banner hidden">RESPAWN 5</div>
+
+              <div id="clashOverlay" class="clash-overlay hidden" role="dialog" aria-modal="false" aria-label="Physics Clash">
+                <div class="clash-card">
+                  <div class="clash-head">
+                    <span class="clash-label">PHYSICS CLASH</span>
+                    <span id="clashCategory" class="clash-category">DINAMIKA</span>
+                    <span id="clashTimer" class="clash-timer">8.0</span>
+                  </div>
+                  <div class="clash-timer-track"><div id="clashTimerFill"></div></div>
+                  <p id="clashPrompt" class="clash-prompt"></p>
+                  <div id="clashOptions" class="clash-options"></div>
+                  <div class="clash-race">
+                    <span id="clashSelfStatus">KAMU: MENJAWAB</span>
+                    <span id="clashEnemyStatus">LAWAN: MENUNGGU</span>
+                  </div>
+                  <div id="clashResult" class="clash-result hidden">
+                    <strong id="clashResultTitle">BENAR</strong>
+                    <p id="clashExplanation"></p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="hud-bottom">
+                <div class="move-cluster">
+                  <div id="movePad" class="move-pad" aria-label="Joystick gerak">
+                    <div class="move-ring"></div>
+                    <div id="moveKnob" class="move-knob"></div>
+                    <span class="move-hint">WASD</span>
+                  </div>
+                </div>
+
+                <div class="self-cluster">
+                  <div id="selfPanel" class="combatant-panel self">
+                    <div class="combatant-head">
+                      <span class="combatant-tag">KAMU</span>
+                      <strong id="selfName">WAROK SURO</strong>
+                      <span id="selfLevel" class="level-chip">LV 1</span>
+                    </div>
+                    <div class="health-track"><div id="selfHealth" class="health-fill"></div><div id="selfShield" class="shield-fill"></div></div>
+                    <div class="combatant-meta">
+                      <span id="selfStats">0 KO</span>
+                      <span id="selfStatus">SIAP</span>
+                    </div>
+                  </div>
+                  <div class="combat-readout">
+                    <div id="playerStatusChips" class="status-chips"></div>
+                    <div class="ammo-row">
+                      <span class="ammo-label">AMMO</span>
+                      <div id="ammoPips" class="ammo-pips"><i></i><i></i><i></i></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="ability-dock v2-dock">
+                  <button class="ability ability-shock" data-ability="shock" type="button" title="Pulse (R)">
+                    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 5c4 5 8 7 8 12a8 8 0 0 1-16 0c0-5 4-7 8-12z" /><path d="M16 14c2 2 3 3 3 5a3 3 0 0 1-6 0c0-2 1-3 3-5z" /></svg>
+                    <span class="ability-key">R</span>
+                    <span class="cooldown-mask"></span>
+                    <span class="cooldown-text"></span>
+                  </button>
+                  <button id="superBtn" class="ability ability-super" data-ability="super" type="button" title="Super (E)">
+                    <span class="super-ring"></span>
+                    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4l3.2 8.1 8.8.7-6.7 5.7 2 8.6L16 22.4 8.7 27l2-8.6L4 12.8l8.8-.7L16 4z" /></svg>
+                    <span class="ability-key">E</span>
+                    <span class="super-ready-label">SUPER</span>
+                  </button>
+                  <button class="ability ability-dash" data-ability="dash" type="button" title="Dash (Space)">
+                    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 21l8-10 4 7 6-8 1 14H7z" /></svg>
+                    <span class="ability-key">SPACE</span>
+                    <span class="cooldown-mask"></span>
+                    <span class="cooldown-text"></span>
+                  </button>
+                  <button class="ability ability-attack" data-ability="attack" type="button" title="Serang (Klik kiri / J). Seret untuk membidik.">
+                    <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="8" /><path d="M16 3v6M16 23v6M3 16h6M23 16h6" /></svg>
+                    <span class="ability-key">LMB</span>
+                    <span class="cooldown-mask"></span>
+                    <span class="cooldown-text"></span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div id="cancelZone" class="cancel-zone hidden">LEPAS DI SINI UNTUK BATAL</div>
+            <div id="gameNotice" class="game-notice hidden"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- 7. HASIL -->
+    <div id="resultOverlay" class="full-overlay hidden" role="dialog" aria-modal="true">
+      <div class="v2-result">
+        <div id="resultBanner" class="v2-banner">
+          <span id="resultKicker" class="eyebrow">PERTANDINGAN SELESAI</span>
+          <h2 id="resultTitle">VICTORY</h2>
+          <p id="resultSubtitle">Momentum ada di pihakmu.</p>
+        </div>
+        <div class="v2-result-body">
+          <div class="v2-mvp">
+            <canvas id="resultHero" width="260" height="300"></canvas>
+            <span class="mvp-badge">MVP</span>
+            <strong id="mvpName">-</strong>
+            <span id="mvpStats">-</span>
+          </div>
+          <div class="v2-board-wrap">
+            <div id="resultBoard" class="v2-board"></div>
+            <div id="resultStats" class="result-stats v2-mystats"></div>
+          </div>
+        </div>
+        <div class="v2-result-actions">
+          <button id="backHomeBtn" class="v2-cta secondary" type="button">KE LOBI</button>
+          <button id="playAgainBtn" class="v2-cta" type="button">MAIN LAGI</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="reconnectOverlay" class="full-overlay hidden" role="alertdialog" aria-modal="true">
+      <div class="reconnect-card">
+        <div class="reconnect-spinner" aria-hidden="true"></div>
+        <span class="eyebrow">KONEKSI TERPUTUS</span>
+        <h2>MENYAMBUNG ULANG</h2>
+        <p id="reconnectText">Slotmu dikendalikan AI sementara. Kami mencoba memulihkan kendali.</p>
+        <div class="reconnect-actions">
+          <button id="retryReconnectBtn" class="mini-btn accent" type="button">COBA LAGI</button>
+          <button id="abandonBtn" class="mini-btn" type="button">KELUAR</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="settingsModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="Pengaturan">
+      <div class="dialog settings-dialog">
+        <div class="room-header">
+          <div>
+            <span class="eyebrow">PENGATURAN</span>
+            <h2>SERVER & AUDIO</h2>
+          </div>
+          <button id="closeSettingsBtn" class="icon-btn small" type="button" aria-label="Tutup">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </div>
+        <label class="field-label" for="serverInput">Alamat server WebSocket</label>
+        <input id="serverInput" class="text-input" placeholder="wss://server.example" autocomplete="off" spellcheck="false" />
+        <p class="hint">Gunakan <code>ws://192.168.x.x:8787</code> (IP komputer) di jaringan yang sama, atau <code>wss://domain</code> untuk internet.</p>
+        <div class="settings-row">
+          <span>Efek suara</span>
+          <button id="audioToggle" class="toggle-btn active" type="button">AKTIF</button>
+        </div>
+        <div class="settings-row">
+          <span>Bidik otomatis (sentuh)</span>
+          <button id="autoAimToggle" class="toggle-btn active" type="button">AKTIF</button>
+        </div>
+        <div class="settings-actions">
+          <button id="leaveMatchBtn" class="mini-btn hidden" type="button">KELUAR PERTANDINGAN</button>
+          <button id="saveServerBtn" class="big-btn blue compact" type="button">SIMPAN & SAMBUNG</button>
+        </div>
+        <p class="legal">Logicodix MVP 0.2.0 · 3v3 · Kunci jawaban diproses di server.</p>
+      </div>
+    </div>
+
+    <div id="rotateHint" class="rotate-hint" aria-hidden="true">
+      <svg viewBox="0 0 48 48"><rect x="12" y="6" width="24" height="36" rx="4" /><path d="M40 24c0-8-6-14-14-14M26 10l5 1M26 10l1 5" /></svg>
+      <strong>PUTAR PERANGKAT</strong>
+      <span>Mainkan dalam mode landscape.</span>
+    </div>
+
+    <div id="toastStack" class="toast-stack" aria-live="polite"></div>
+
+    <div id="bootOverlay" class="boot-overlay">
+      <div class="boot-logo">
+        <span class="boot-mark">L</span>
+        <span class="boot-name">LOGICODIX</span>
+        <span class="boot-sub">MOMENTUM ARENA</span>
+      </div>
+      <div class="boot-loader"><span></span></div>
+      <p id="bootStatus">Menyiapkan arena...</p>
+    </div>
+
+    <script type="module" src="/client/main.js"></script>
+  </body>
+</html>
