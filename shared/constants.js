@@ -39,7 +39,7 @@ export const MATCH = Object.freeze({
 export const CLASH = Object.freeze({
   firstAt: 20,
   interval: 35,
-  duration: 8,
+  duration: 5,
   resultDisplay: 2.6,
   slowFactor: 0.18,
   edgeDuration: 10,

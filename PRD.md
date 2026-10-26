@@ -86,7 +86,7 @@ implementasi MVP.
    memakai AI.
 3. Match dimulai setelah countdown. Minion berjalan, pemain farming dan
    menghancurkan menara.
-4. Setiap 40 detik **Physics Clash** aktif di arena selama maksimal 8 detik.
+4. Setiap 40 detik **Physics Clash** aktif di arena selama maksimal 5 detik.
    Kedua pemain mendapat soal identik dan harus menjawab lebih dulu.
 5. Pemenang Clash mendapat **Physics Edge** dan **Insight**; jawaban salah
    mendapat **Momentum Loss**.
@@ -101,7 +101,7 @@ implementasi MVP.
 | 0:00 | Countdown selesai, hero spawn, minion wave pertama. |
 | 0:10 | Menara aktif. Pemain dapat push lane. |
 | 0:25 | Physics Clash #1 (soal sesuai tingkat room). |
-| 0:35, 1:15, 1:55, ... | Clash berikutnya setiap 40 detik, maksimal 8 detik. |
+| 0:35, 1:15, 1:55, ... | Clash berikutnya setiap 40 detik, maksimal 5 detik. |
 | Sepanjang match | Menara, cover, minion, hero, proyektil, dan Nexus berinteraksi dengan fisika. |
 | Menit 6 | Waktu habis. Skor tertinggi menang; jika seri, Nexus dengan HP lebih tinggi menang. |
 | Kapan pun | Nexus hancur = kemenangan instan. |
@@ -156,7 +156,7 @@ Besaran yang disimulasikan:
 ### 6.1 Pemicu dan timing
 
 - Clash pertama pada detik 25, lalu setiap 40 detik.
-- Durasi maksimum 8 detik.
+- Durasi maksimum 5 detik.
 - Saat aktif, seluruh simulasi melambat menjadi 18% kecepatan normal. Timer
   Clash tetap memakai waktu nyata.
 - Clash berakhir lebih awal ketika ada jawaban benar pertama (race winner).
@@ -167,7 +167,7 @@ Besaran yang disimulasikan:
 
 1. Server memilih satu soal fisika berdasarkan tingkat kesulitan room dan
    mengirim payload yang **tidak memuat kunci jawaban** ke kedua pemain.
-2. Client menampilkan overlay berisi soal, empat opsi, timer 8 detik, dan status
+2. Client menampilkan overlay berisi soal, empat opsi, timer 5 detik, dan status
    lawan (belum menjawab / terkunci).
 3. Pemain menjawab lewat tombol 1–4 atau klik. Server memvalidasi:
    - Satu jawaban per pemain per Clash.
@@ -353,7 +353,7 @@ aplikasi native adalah target distribusi.
 3. **Room:** kode room, daftar pemain, hero, level, tombol siap, countdown.
 4. **Match:** canvas arena, HUD HP/level, skor, menara/Nexus, timer, Clash overlay,
    skill bar, feed event.
-5. **Clash:** satu soal, empat opsi, timer 8 detik, indikator status lawan,
+5. **Clash:** satu soal, empat opsi, timer 5 detik, indikator status lawan,
    feedback benar/salah dan penjelasan singkat.
 6. **Result:** menang/kalah, statistik kill/death/insight, tombol rematch/keluar.
 7. **Disconnect:** banner dan status AI takeover, indikator reconnect.
@@ -417,7 +417,7 @@ disconnect, durasi match. Tidak menyimpan data pribadi yang tidak diperlukan.
 
 | Risiko | Dampak | Mitigasi |
 |---|---|---|
-| Soal mengganggu flow combat | Tinggi | Hanya event Clash, slow-motion, overlay ringkas, timer 8 detik. |
+| Soal mengganggu flow combat | Tinggi | Hanya event Clash, slow-motion, overlay ringkas, timer 5 detik. |
 | Pemain non-fisika frustrasi | Sedang | Tiga tingkat, penjelasan setelah jawaban, latihan tanpa tekanan. |
 | Race terasa tidak adil karena latensi | Sedang | Server timestamp, delay AI, slow-motion, region server produksi. |
 | Menyontek | Rendah–sedang | Bank acak, timer ketat, kunci di server, variasi soal produksi. |

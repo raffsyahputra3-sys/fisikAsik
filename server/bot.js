@@ -3,8 +3,8 @@ import { getHero } from "../shared/heroes.js";
 import { normalize } from "../shared/physics.js";
 
 const ACCURACY = { 1: 0.5, 2: 0.66, 3: 0.8 };
-const DELAY_MIN = 2400;
-const DELAY_MAX = 6100;
+const DELAY_MIN = 1300;
+const DELAY_MAX = 4200;
 
 export function planBotQuiz({ level, correctIndex, now, random = Math.random }) {
   const accuracy = ACCURACY[level] ?? 0.55;
