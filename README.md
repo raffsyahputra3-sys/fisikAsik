@@ -240,6 +240,27 @@ Setiap kali client web berubah, jalankan `npm run android:sync` lagi sebelum bui
   hero lawan muncul panah arah penyerang dan kilatan merah di tepi layar; saat HP
   turun ke 30% muncul peringatan HP kritis.
 
+## Minion
+
+Minion mengikuti tema faksi: **Samudra** = prajurit pesisir biru-teal (ikat kepala biru, kain
+pendek, tombak/trisula atau busur, tameng kerang) dan **Merapi** = prajurit gunung merah-emas
+(ikat kepala merah, rompi dan sabuk, pedang pendek atau busur api, tameng kayu). Perbedaan
+tim terbaca lewat bentuk, bukan hanya warna. Tiap lane berisi dua petarung dan satu pemanah
+(varian visual; statistik sama). Minion berjalan dengan goyangan, mengayun senjata saat
+menyerang, dan menyusut saat mati. Tier efek **Ringan** memakai model minion sederhana.
+Config tampilan ada di `shared/minions.js`; aset visual seluruhnya prosedural (lihat `CREDITS.md`).
+
+## Efek kartu karakter di lobi
+
+Potret hero di lobi punya efek khas sesuai legenda: bara emas dan bulu merak (Warok
+Suro), riak peta dan ombak emas (Patih Gajah), api dan kabut ungu (Leak Bali),
+gelembung dan mutiara (Nyi Roro), daun dan kunang-kunang hutan (Sipet Dayak), serta
+hujan dan asap dupa (Pawang Hujan). Kartu hero yang terpilih di sisi kanan ikut
+beranimasi. Tombol **SHOWCASE** memutar sorotan 3,6 detik: pose menyerang, ledakan
+partikel, cincin energi, nama ultimate, dan (sesuai pengaturan Efek layar) kilatan,
+getar, serta jumpscare. Showcase otomatis saat ganti hero hanya memakai partikel.
+Kepadatan partikel mengikuti level (Kalem/Normal/Ganas) dan tier kualitas.
+
 ## Efek layar (ultimate)
 
 Saat memakai ultimate, layar mendapat grading warna, kilatan singkat, jumpscare

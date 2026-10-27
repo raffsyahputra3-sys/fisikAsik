@@ -1,3 +1,4 @@
+import { drawLobbyFx } from "./lobbyfx.js";
 import { ARENA, TEAM } from "../shared/constants.js";
 import { getHero } from "../shared/heroes.js";
 import { clamp } from "../shared/physics.js";
@@ -720,6 +721,7 @@ export function drawHeroPortrait(canvas, heroId, time, options = {}) {
       ctx.fill();
     }
   }
+  if (options.fx) drawLobbyFx(ctx, width, height, hero.id, time, options.fx);
 }
 
 export class ArenaRenderer {

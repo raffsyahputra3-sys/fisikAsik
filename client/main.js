@@ -1,5 +1,6 @@
 import { AudioEngine } from "./audio.js";
 import { angleToward, collectHitEvents, hpTone, mergeAlert } from "./combat.js";
+import { SHOWCASE_MS } from "./lobbyfx.js";
 import { ScreenFx } from "./fx.js";
 import { GameInput } from "./input.js";
 import { GameClient } from "./net.js";
@@ -22,6 +23,7 @@ const els = {
   roomScreen: $("roomScreen"),
   gameScreen: $("gameScreen"),
   heroPreview: $("heroPreview"),
+  showcaseBtn: $("showcaseBtn"),
   heroName: $("heroName"),
   heroRole: $("heroRole"),
   heroTagline: $("heroTagline"),
@@ -236,6 +238,7 @@ const ui = {
   matchResult: null,
   activeClash: null,
   activeDuel: null,
+  showcaseAt: null,
   hitSeen: new Map(),
   hitPrimed: false,
   alerts: { in: null, out: null },
@@ -1607,9 +1610,39 @@ function startQueue() {
   client.send({ type: "quickMatch", ...currentProfile() });
 }
 
+/** Opsi efek khas hero untuk potret lobi (level/tier dari pengaturan efek). */
+function lobbyFxOptions(extra = {}) {
+  return {
+    level: screenFx.settings.level,
+    tier: screenFx.tier,
+    showcaseAt: ui.showcaseAt,
+    reducedMotion: Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches),
+    ...extra,
+  };
+}
+
+/**
+ * Putar showcase hero di lobi (3,6 dtk). Otomatis saat ganti hero hanya efek partikel;
+ * lewat tombol (manual) juga memicu efek layar penuh sesuai pengaturan, dibatasi
+ * minimal 4 detik antar putaran agar kilatan tidak beruntun.
+ */
+function playShowcase({ manual = false } = {}) {
+  const now = performance.now();
+  if (manual && ui.showcaseAt !== null && now - ui.showcaseAt < 4000) return;
+  ui.showcaseAt = now;
+  els.showcaseBtn.classList.add("playing");
+  window.setTimeout(() => els.showcaseBtn.classList.remove("playing"), SHOWCASE_MS);
+  if (manual) {
+    audio.click();
+    screenFx.trigger(ui.heroId, { shakeTarget: els.heroPreview.parentElement });
+  }
+}
+
 function selectHero(heroId) {
   const hero = getHero(heroId);
+  const changed = ui.heroId !== heroId;
   ui.heroId = heroId;
+  if (changed && ui.screen === "home") playShowcase();
   els.heroName.textContent = upper(hero.name);
   els.heroRole.textContent = upper(hero.role);
   els.heroTagline.textContent = hero.tagline;
@@ -1634,8 +1667,13 @@ function selectHero(heroId) {
     card.classList.toggle("active", card.dataset.hero === heroId);
   }
   els.skillPill.textContent = `FISIKA ${upper(ui.skill)}`;
-  const preview = els.heroPicker.querySelector(`.hero-card[data-hero="${heroId}"] canvas`);
-  if (preview) drawPortrait(preview, heroId, performance.now(), { scale: 0.8, sparkles: false });
+  // kartu lain digambar ulang statis (tanpa efek) agar tidak ada partikel beku
+  for (const card of els.heroPicker.querySelectorAll(".hero-card")) {
+    const canvas = card.querySelector("canvas");
+    if (canvas && card.dataset.hero !== heroId) {
+      drawPortrait(canvas, card.dataset.hero, performance.now(), { scale: 0.8, sparkles: false });
+    }
+  }
   saveProfile();
 }
 
@@ -2158,6 +2196,8 @@ function bindEvents() {
     backHome();
   });
 
+  els.showcaseBtn.addEventListener("click", () => playShowcase({ manual: true }));
+
   els.autoAimToggle.addEventListener("click", () => {
     ui.autoAim = !ui.autoAim;
     try {
@@ -2374,12 +2414,21 @@ function startFrames() {
     const inGame = ui.screen === "game";
     if (screenFx.active !== inGame) screenFx.setActive(inGame);
     screenFx.frame(now);
+    if (inGame) renderer.setMinionDetail?.(screenFx.tier === "lite" ? "lite" : "full");
     updateQueueClock();
     updateRoomCountdown();
     if (ui.screen === "select") updateSelectTimer();
     if (ui.screen === "loading") updateLoading(now);
     if (ui.screen === "home") {
-      drawPortrait(els.heroPreview, ui.heroId, now, { scale: 1 });
+      drawPortrait(els.heroPreview, ui.heroId, now, { scale: 1, fx: lobbyFxOptions() });
+      const activeCard = els.heroPicker.querySelector(".hero-card.active canvas");
+      if (activeCard) {
+        drawPortrait(activeCard, ui.heroId, now, {
+          scale: 0.8,
+          sparkles: false,
+          fx: lobbyFxOptions({ density: 0.5, compact: true }),
+        });
+      }
     }
     if (ui.resultVisible) {
       const heroId =

@@ -19,6 +19,7 @@ import {
   TOWERS,
 } from "../shared/constants.js";
 import { HEROES, getHero } from "../shared/heroes.js";
+import { minionVariant } from "../shared/minions.js";
 import { questionsForLevel } from "../shared/questions.js";
 import {
   circleCircle,
@@ -1615,6 +1616,7 @@ export class Room {
         if (distance <= minion.range + (target.radius ?? 0)) {
           if (minion.attackCd <= 0) {
             minion.attackCd = MINION.interval;
+            minion.attackedAt = now;
             if (target.kind === "player") {
               this.applyPlayerDamage(target.entity, MINION.damage, null, now, "minion");
             } else if (target.kind === "minion") {
@@ -1674,6 +1676,8 @@ export class Room {
             speed: MINION.speed,
             range: MINION.range,
             attackCd: 0.4 + index * 0.08,
+            variant: minionVariant(index),
+            attackedAt: 0,
             alive: true,
           });
         }
@@ -2441,6 +2445,8 @@ export class Room {
         maxHp: minion.maxHp,
         team: minion.team,
         lane: minion.lane,
+        variant: minion.variant,
+        attacking: now - minion.attackedAt < 280,
       })),
       towers: this.towers.map((tower) => ({
         id: tower.id,

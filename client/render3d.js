@@ -1,8 +1,11 @@
 import * as THREE from "../assets/vendor/three.module.js";
 import { ARENA, LANES, LANE_IDS, NEXUS, TEAM } from "../shared/constants.js";
 import { getHero } from "../shared/heroes.js";
+import { hexToNumber, minionSkin } from "../shared/minions.js";
 import { clamp } from "../shared/physics.js";
 import { bearingBetween } from "./combat.js";
+import { MINION_DEATH_MS, minionPose, minionSeed } from "./minions.js";
+import { drawLobbyFx, showcasePose } from "./lobbyfx.js";
 import { ArenaRenderer, TEAM_COLORS, drawHeroPortrait, roundedRect } from "./render.js";
 
 const TEAM_HEX = [0x45c3ff, 0xff5d7d];
@@ -310,7 +313,7 @@ function material(color, options = {}) {
 function toon(geometry, color, options = {}) {
   const group = new THREE.Group();
   const mesh = new THREE.Mesh(geometry, material(color, options));
-  mesh.castShadow = true;
+  mesh.castShadow = options.shadow !== false;
   mesh.receiveShadow = true;
   group.add(mesh);
   if (options.outline !== false) {
@@ -966,13 +969,104 @@ function buildCover(cover) {
   return group;
 }
 
-function buildMinion(team) {
-  const group = new THREE.Group();
-  put(group, ball(TEAM_HEX[team], 13, 13, 13), 0, 15, 0);
-  put(group, cone(TEAM_DARK_HEX[team], 4, 8, { outline: false }), 0, 32, 0);
-  for (const side of [-1, 1]) {
-    put(group, ball(0x071a23, 2.4, 3.2, 1.6, { outline: false }), side * 4.4, 17, 11.5);
+const bowGeo = new THREE.TorusGeometry(1, 0.1, 6, 14, Math.PI);
+const MINION_PART = Object.freeze({ outline: false, shadow: false });
+
+/** Senjata yang dipegang tangan kanan minion; menghadap +z, dipegang tegak dari genggaman. */
+function buildMinionWeapon(kind, colors, lite) {
+  const held = new THREE.Group();
+  const wood = 0x8a5e38;
+  if (kind === "trident") {
+    put(held, cylinder(wood, 1.1, 44, 1.1, MINION_PART), 0, 14, 0);
+    put(held, cone(colors.light, 1.5, 8, MINION_PART), 0, 38, 0);
+    if (!lite) {
+      put(held, block(colors.accent, 9, 1.3, 1.3, MINION_PART), 0, 31, 0);
+      for (const side of [-1, 1]) put(held, cone(colors.light, 1.2, 7, MINION_PART), side * 4.2, 35, 0);
+    }
+  } else if (kind === "sword") {
+    put(held, cylinder(colors.dark, 1.3, 5, 1.3, MINION_PART), 0, 0, 0);
+    put(held, block(colors.light, 8.5, 1.8, 2.6, MINION_PART), 0, 3, 0);
+    put(held, block(0xcbd5e1, 3.2, 22, 1, { outline: false, shadow: false, metalness: 0.5 }), 0, 15, 0);
+    if (!lite) put(held, cone(0xcbd5e1, 1.6, 5, MINION_PART), 0, 28.5, 0);
+  } else {
+    // busur (Samudra) atau busur api (Merapi)
+    const fire = kind === "fireBow";
+    const bowHolder = new THREE.Group();
+    bowHolder.rotation.y = -Math.PI / 2;
+    const bow = toon(bowGeo, fire ? 0x5b3a1c : wood, MINION_PART);
+    bow.scale.setScalar(11);
+    bow.rotation.z = -Math.PI / 2;
+    bowHolder.add(bow);
+    put(bowHolder, block(0xf8fafc, 0.35, 22, 0.35, MINION_PART), 0, 0, 0);
+    held.add(bowHolder);
+    put(held, block(wood, 0.9, 0.9, 16, MINION_PART), 0, 0, 8);
+    put(
+      held,
+      cone(fire ? colors.accent : colors.light, 1.7, 5, { ...MINION_PART, emissive: fire ? 0xc2410c : 0 }),
+      0,
+      0,
+      17,
+    ).rotation.x = Math.PI / 2;
   }
+  return held;
+}
+
+/**
+ * Minion bertema faksi (config: shared/minions.js). Samudra = prajurit pesisir biru-teal
+ * (kain pendek, tombak/busur, tameng kerang); Merapi = prajurit gunung merah-emas (rompi,
+ * pedang/busur api, tameng kayu). `detail` "lite" = model sederhana untuk perangkat lemah.
+ */
+export function buildMinion(team, variant = "melee", detail = "full") {
+  const skin = minionSkin(team);
+  const colors = Object.fromEntries(Object.entries(skin.palette).map(([name, hex]) => [name, hexToNumber(hex)]));
+  const lite = detail === "lite";
+  const samudra = team === TEAM.BLUE;
+  const group = new THREE.Group();
+  const body = new THREE.Group();
+  group.add(body);
+  const parts = lite ? MINION_PART : {};
+  const skinTone = 0xd9a066;
+
+  put(body, ball(colors.main, samudra ? 10 : 12.5, 12, samudra ? 9 : 11, parts), 0, 16, 0);
+  put(body, ball(skinTone, 7.4, 7.4, 7, parts), 0, 30, 0);
+  for (const side of [-1, 1]) put(body, ball(0x071a23, 1.5, 2.1, 1, MINION_PART), side * 2.8, 31, 6.4);
+
+  if (!lite) {
+    if (samudra) {
+      put(body, cylinder(colors.light, 11, 5.5, 10, MINION_PART), 0, 6, 0);
+      put(body, cylinder(colors.main, 7.8, 2.2, 7.8, MINION_PART), 0, 33, 0);
+    } else {
+      put(body, block(colors.dark, 26, 3.4, 21, MINION_PART), 0, 9.5, 0);
+      put(body, block(colors.light, 4.5, 13, 1.4, MINION_PART), 0, 17, 10.4);
+      put(body, cylinder(colors.main, 7.9, 2.4, 7.9, MINION_PART), 0, 33, 0);
+      put(body, ball(colors.light, 1.6, 1.6, 1.6, MINION_PART), 0, 33.2, 7.6);
+    }
+  }
+
+  const shoulderX = samudra ? 10.5 : 13;
+  const arm = new THREE.Group();
+  put(body, arm, shoulderX, 21, 0);
+  put(arm, cylinder(colors.main, 3.2, 10, 3.2, MINION_PART), 0, -5, 0);
+  put(arm, ball(skinTone, 3.6, 3.6, 3.6, MINION_PART), 0, -10.5, 0);
+  const kind = lite || variant !== "ranged" ? skin.melee : skin.ranged;
+  put(arm, buildMinionWeapon(kind, colors, lite), 0, -10.5, 2);
+
+  let shield = null;
+  if (!lite && variant !== "ranged") {
+    shield = new THREE.Group();
+    put(body, shield, -shoulderX - 1, 17, 5);
+    if (skin.shield === "shell") {
+      put(shield, ball(colors.light, 7, 8.5, 2.2, MINION_PART), 0, 0, 0);
+      put(shield, ball(colors.dark, 2.6, 2.6, 1.6, MINION_PART), 0, 0, 2);
+      put(shield, cylinder(colors.main, 6.4, 0.8, 6.4, MINION_PART), 0, 0, 1.6).rotation.x = Math.PI / 2;
+    } else {
+      put(shield, block(0x6b3f1d, 11, 14, 2.6, MINION_PART), 0, 0, 0);
+      put(shield, ball(colors.light, 2.8, 2.8, 1.6, MINION_PART), 0, 0, 1.8);
+      for (const y of [-4.6, 4.6]) put(shield, block(colors.light, 11.4, 1.5, 2.9, MINION_PART), 0, y, 0);
+    }
+  }
+
+  group.userData.rig = { body, arm, shield };
   return group;
 }
 
@@ -1166,6 +1260,7 @@ export class ArenaRenderer3D extends ArenaRenderer {
     super(canvas);
     this.is3d = true;
     this.floaters = [];
+    this.minionDetail = "full";
     this.glCanvas = document.createElement("canvas");
     this.glCanvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;pointer-events:none;";
     canvas.parentElement.insertBefore(this.glCanvas, canvas);
@@ -1346,6 +1441,25 @@ export class ArenaRenderer3D extends ArenaRenderer {
     return { x: (this.vec.x * 0.5 + 0.5) * width, y: (-this.vec.y * 0.5 + 0.5) * height };
   }
 
+  /** Terapkan pose (goyang jalan, ayun senjata) ke rig minion. */
+  poseMinion(entry, pose) {
+    const rig = entry.userData.rig;
+    if (!rig) return;
+    rig.body.position.y = pose.bob;
+    rig.body.rotation.z = pose.tilt;
+    rig.arm.rotation.x = pose.armX;
+    if (rig.shield) rig.shield.rotation.x = pose.shieldX;
+  }
+
+  /** Tier performa: "lite" memakai model minion sederhana; berganti tier membangun ulang model. */
+  setMinionDetail(detail) {
+    const next = detail === "lite" ? "lite" : "full";
+    if (next === this.minionDetail) return;
+    this.minionDetail = next;
+    for (const entry of this.minions.values()) this.scene.remove(entry);
+    this.minions.clear();
+  }
+
   /**
    * Arah dari `from` ke `to` di ruang layar (lewat proyeksi kamera, bukan sumbu dunia),
    * beserta titik layar `from`, agar panah penyerang tepat di sudut kamera perspektif.
@@ -1432,20 +1546,32 @@ export class ArenaRenderer3D extends ArenaRenderer {
       seenMinions.add(minion.id);
       let entry = this.minions.get(minion.id);
       if (!entry) {
-        entry = buildMinion(minion.team);
+        entry = buildMinion(minion.team, minion.variant, this.minionDetail);
         entry.scale.setScalar(MINION_VISUAL_SCALE);
+        entry.userData.seed = minionSeed(minion.id);
+        entry.userData.dyingAt = 0;
         this.scene.add(entry);
         this.minions.set(minion.id, entry);
       }
       const smooth = this.smooth.get(`m:${minion.id}`);
-      entry.position.set(smooth?.x ?? minion.x, Math.abs(Math.sin(time * 6 + minion.id * 1.3)) * 3, smooth?.y ?? minion.y);
+      entry.position.set(smooth?.x ?? minion.x, 0, smooth?.y ?? minion.y);
       entry.rotation.y = minion.team === TEAM.BLUE ? Math.PI / 2 : -Math.PI / 2;
+      this.poseMinion(entry, minionPose(time, entry.userData.seed, { attacking: Boolean(minion.attacking) }));
     }
     for (const [id, entry] of this.minions) {
-      if (!seenMinions.has(id)) {
+      if (seenMinions.has(id)) continue;
+      // minion mati menyusut sebentar sebelum dihapus
+      entry.userData.dyingAt ||= now;
+      const progress = (now - entry.userData.dyingAt) / MINION_DEATH_MS;
+      if (progress >= 1) {
         this.scene.remove(entry);
         this.minions.delete(id);
+        continue;
       }
+      const pose = minionPose(time, entry.userData.seed, { dyingProgress: progress });
+      this.poseMinion(entry, pose);
+      entry.scale.setScalar(MINION_VISUAL_SCALE * Math.max(0.05, pose.scale));
+      entry.rotation.y += pose.spin * 0.08;
     }
 
     const seenHeroes = new Set();
@@ -2113,8 +2239,15 @@ export function drawHeroPortrait3D(target, heroId, time, options = {}) {
   entry.model.position.y = Math.sin(seconds * 3) * 1.4;
   // lobi: sesekali tersenyum, lalu berteriak sambil mengayunkan senjata
   const phase = seconds % 7;
-  const expression = phase < 1.3 ? "happy" : phase > 3.6 && phase < 4.4 ? "angry" : "idle";
-  const attack = phase > 3.6 && phase < 4.4 ? 1 - (phase - 3.6) / 0.8 : 0;
+  const showcase = options.fx ? showcasePose(time, options.fx.showcaseAt) : null;
+  const expression = showcase
+    ? showcase.expression
+    : phase < 1.3
+      ? "happy"
+      : phase > 3.6 && phase < 4.4
+        ? "angry"
+        : "idle";
+  const attack = showcase ? showcase.attack : phase > 3.6 && phase < 4.4 ? 1 - (phase - 3.6) / 0.8 : 0;
   animateHero(entry.state, seconds, { speed: 0, attack, expression });
 
   const aspect = studio.camera.aspect;
@@ -2146,4 +2279,5 @@ export function drawHeroPortrait3D(target, heroId, time, options = {}) {
       ctx.fill();
     }
   }
+  if (options.fx) drawLobbyFx(ctx, width, height, hero.id, time, options.fx);
 }

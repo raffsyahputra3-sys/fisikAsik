@@ -2261,3 +2261,58 @@ body.native #fullscreenBtn {
     font-size: 10px;
   }
 }
+
+/* ---------------------------------------------------------------- kartu karakter lobi */
+
+.v2-stage {
+  position: relative;
+}
+
+.showcase-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 14px 9px 11px;
+  border: 2px solid rgba(255, 227, 109, 0.55);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 227, 109, 0.22), rgba(240, 161, 11, 0.16));
+  color: #ffe36d;
+  font-family: var(--font-display);
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3);
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.showcase-btn svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+.showcase-btn:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(180deg, rgba(255, 227, 109, 0.36), rgba(240, 161, 11, 0.26));
+}
+
+.showcase-btn:active {
+  transform: translateY(1px);
+}
+
+.showcase-btn.playing {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+@media (max-height: 440px) {
+  .showcase-btn {
+    top: 6px;
+    right: 6px;
+    padding: 6px 10px 6px 8px;
+    font-size: 8px;
+  }
+}
